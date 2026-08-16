@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_constants.dart';
 import 'package:glitch_tv/features/home/presentation/view/pages/home_page.dart';
 
@@ -16,6 +17,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: AppConstants.appName,
       theme: ThemeData(
+        scaffoldBackgroundColor: AppColors.scaffoldBackground,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: HomePage(),
