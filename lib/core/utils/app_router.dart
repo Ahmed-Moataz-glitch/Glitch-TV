@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:glitch_tv/core/view/widgets/app_section.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view/pages/channel_details_page.dart';
+import 'package:glitch_tv/features/channel_details/presentation/view/pages/channel_stream_page.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
 import 'package:go_router/go_router.dart';
 
@@ -16,6 +17,8 @@ abstract class AppRouter {
   static const String settingsName = 'settings';
   static const String channelDetailsPath = '/channel-details';
   static const String channelDetailsName = 'channel-details';
+  static const String watchStreamPath = '/watch-stream';
+  static const String watchStreamName = 'watch-stream';
   static late final GoRouter router;
 
   static void initializeRouter() {
@@ -47,6 +50,14 @@ abstract class AppRouter {
           builder: (context, state) {
             final item = state.extra as ChannelItemEntity;
             return ChannelDetailsPage(channelItem: item);
+          },
+        ),
+        GoRoute(
+          path: watchStreamPath,
+          name: watchStreamName,
+          builder: (context, state) {
+            final item = state.extra as ChannelItemEntity;
+            return ChannelStreamPage(channelItem: item);
           },
         ),
       ],

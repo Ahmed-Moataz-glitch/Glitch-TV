@@ -2,17 +2,21 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'package:glitch_tv/core/utils/api_result.dart';
 import 'package:glitch_tv/core/utils/app_api.dart';
+import 'package:glitch_tv/features/channel_details/data/models/channel_stream_dto.dart';
 import 'package:glitch_tv/features/channel_details/data/models/epg_programme_dto.dart';
+import 'package:glitch_tv/features/home/data/models/channels_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 class ChannelDetailsApi {
   static List<EpgProgrammeDto>? _cachedEpg;
   static DateTime? _lastFetchTime;
+  static List<ChannelStreamDto>? _cachedStreams;
 
   static void clearCache() {
     _cachedEpg = null;
     _lastFetchTime = null;
+    _cachedStreams = null;
   }
 
   Future<ApiResult<List<EpgProgrammeDto>>> fetchEpgGuide({bool forceRefresh = false}) async {
@@ -65,6 +69,38 @@ class ChannelDetailsApi {
         return ApiSuccess(_cachedEpg!);
       }
       return ApiError('EPG network error: ${e.toString()}');
+    }
+  }
+
+  Future<ApiResult<List<ChannelStreamDto>>> fetchStreams({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedStreams != null && _cachedStreams!.isNotEmpty) {
+      return ApiSuccess(_cachedStreams!);
+    }
+
+    final url = Uri.https(AppApi.iptvBaseUrl, AppApi.streamsEndpoint);
+    try {
+      final response = await http.get(url).timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) {
+        if (_cachedStreams != null && _cachedStreams!.isNotEmpty) {
+          return ApiSuccess(_cachedStreams!);
+        }
+        return ApiError('Failed to fetch streams (${response.statusCode})');
+      }
+
+      final responseBody = utf8.decode(response.bodyBytes, allowMalformed: true);
+      final allowedSet = channels.toSet();
+      final dtos = await Isolate.run(() {
+        final jsonList = jsonDecode(responseBody) as List<dynamic>;
+        return ChannelStreamDto.fromJsonList(jsonList, allowedChannelIds: allowedSet);
+      });
+
+      _cachedStreams = dtos;
+      return ApiSuccess(dtos);
+    } catch (e) {
+      if (_cachedStreams != null && _cachedStreams!.isNotEmpty) {
+        return ApiSuccess(_cachedStreams!);
+      }
+      return ApiError('Streams network error: ${e.toString()}');
     }
   }
 

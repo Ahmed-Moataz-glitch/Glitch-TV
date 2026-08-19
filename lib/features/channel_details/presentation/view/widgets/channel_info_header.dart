@@ -2,7 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_router.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 
 class ChannelInfoHeader extends StatelessWidget {
@@ -161,6 +163,59 @@ class ChannelInfoHeader extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
+          SizedBox(height: 16.h),
+
+          // Watch Now Button
+          SizedBox(
+            width: double.infinity,
+            height: 48.h,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16.r),
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primaryLight,
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withAlpha(80),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  context.push(AppRouter.watchStreamPath, extra: item);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
+                ),
+                icon: Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 24.sp,
+                ),
+                label: Text(
+                  'Watch Now',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ),
           ),
 
           if (channel.owners.isNotEmpty || channel.website.isNotEmpty) ...[
