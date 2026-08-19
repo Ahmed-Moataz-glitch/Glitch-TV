@@ -31,26 +31,29 @@ class ChannelsResponseDto {
   ChannelsResponseDto.fromJson(Map<String, dynamic> json) {
     id = json['id'];
     name = json['name'];
-    if (json['alt_names'] != String) {
-      altNames = <String>[];
-      json['alt_names'].forEach((v) {
-        altNames!.add(v);
-      });
+    if (json['alt_names'] != null && json['alt_names'] is List) {
+      altNames = (json['alt_names'] as List).map((v) => v.toString()).toList();
     }
     network = json['network'];
-    if (json['owners'] != String) {
-      owners = <String>[];
-      json['owners'].forEach((v) {
-        owners!.add(v);
-      });
+    if (json['owners'] != null && json['owners'] is List) {
+      owners = (json['owners'] as List).map((v) => v.toString()).toList();
     }
     country = json['country'];
-    categories = json['categories'].cast<String>();
+    if (json['categories'] != null && json['categories'] is List) {
+      categories = (json['categories'] as List).map((v) => v.toString()).toList();
+    }
     isNsfw = json['is_nsfw'];
     launched = json['launched'];
     closed = json['closed'];
     replacedBy = json['replaced_by'];
     website = json['website'];
+  }
+
+  static List<ChannelsResponseDto> fromJsonList(List<dynamic> jsonList) {
+    return jsonList
+        .whereType<Map<String, dynamic>>()
+        .map((json) => ChannelsResponseDto.fromJson(json))
+        .toList();
   }
 
   ChannelsResponseEntity toEntity() {

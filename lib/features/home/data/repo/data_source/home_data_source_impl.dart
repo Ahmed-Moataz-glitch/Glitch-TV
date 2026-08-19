@@ -1,4 +1,4 @@
-import 'package:glitch_tv/features/home/data/api/api_result.dart';
+import 'package:glitch_tv/core/utils/api_result.dart';
 import 'package:glitch_tv/features/home/data/api/home_api.dart';
 import 'package:glitch_tv/features/home/data/models/channels_response_dto.dart';
 import 'package:glitch_tv/features/home/data/models/logos_response_dto.dart';
@@ -11,24 +11,26 @@ class HomeDataSourceImpl extends HomeDataSource {
   HomeDataSourceImpl(this._homeApi);
 
   @override
-  Future<ApiResult<ChannelsResponseEntity>> fetchChannels() async {
+  Future<ApiResult<List<ChannelsResponseEntity>>> fetchChannels() async {
     final result = await _homeApi.fetchChannels();
     switch(result) {
-      case ApiSuccess<ChannelsResponseDto>():
-        return ApiSuccess<ChannelsResponseEntity>(result.data?.toEntity());
-      case ApiError<ChannelsResponseDto>():
-        return ApiError<ChannelsResponseEntity>(result.message);
+      case ApiSuccess<List<ChannelsResponseDto>>():
+        final entities = result.data?.map((e) => e.toEntity()).toList() ?? [];
+        return ApiSuccess<List<ChannelsResponseEntity>>(entities);
+      case ApiError<List<ChannelsResponseDto>>():
+        return ApiError<List<ChannelsResponseEntity>>(result.message);
     }
   }
 
   @override
-  Future<ApiResult<LogosResponseEntity>> fetchLogos() async {
+  Future<ApiResult<List<LogosResponseEntity>>> fetchLogos() async {
     final result = await _homeApi.fetchLogos();
     switch(result) {
-      case ApiSuccess<LogosResponseDto>():
-        return ApiSuccess<LogosResponseEntity>(result.data?.toEntity());
-      case ApiError<LogosResponseDto>():
-        return ApiError<LogosResponseEntity>(result.message);
+      case ApiSuccess<List<LogosResponseDto>>():
+        final entities = result.data?.map((e) => e.toEntity()).toList() ?? [];
+        return ApiSuccess<List<LogosResponseEntity>>(entities);
+      case ApiError<List<LogosResponseDto>>():
+        return ApiError<List<LogosResponseEntity>>(result.message);
     }
   }
 }

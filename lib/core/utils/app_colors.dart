@@ -8,4 +8,5 @@ abstract class AppColors {
   static const Color textPrimary = Color(0xFFFFFFFF);
   static const Color textSecondary = Color(0xFFB8AECC);
   static const Color scaffoldBackground = Color(0xFF0F0A1A);
+  static const Color transparent = Colors.transparent;
 }
