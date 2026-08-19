@@ -4,26 +4,25 @@ sealed class HomeState {}
 
 final class HomeInitial extends HomeState {}
 
-final class LogosLoading extends HomeState {}
+final class HomeLoading extends HomeState {}
 
-final class LogosLoaded extends HomeState {
-  final LogosResponseEntity logosResponseEntity;
-  LogosLoaded(this.logosResponseEntity);
+final class HomeSuccess extends HomeState {
+  final List<ChannelItemEntity> allItems;
+  final List<ChannelItemEntity> filteredItems;
+  final List<ChannelItemEntity> featuredItems;
+  final List<String> categories;
+  final String selectedCategory;
+
+  HomeSuccess({
+    required this.allItems,
+    required this.filteredItems,
+    required this.featuredItems,
+    required this.categories,
+    required this.selectedCategory,
+  });
 }
 
-final class LogosError extends HomeState {
+final class HomeError extends HomeState {
   final String message;
-  LogosError(this.message);
-}
-
-final class ChannelsLoading extends HomeState {}
-
-final class ChannelsLoaded extends HomeState {
-  final ChannelsResponseEntity channelsResponseEntity;
-  ChannelsLoaded(this.channelsResponseEntity);
-}
-
-final class ChannelsError extends HomeState {
-  final String message;
-  ChannelsError(this.message);
+  HomeError(this.message);
 }

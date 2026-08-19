@@ -19,6 +19,11 @@ dependencies:
   cached_network_image: ^3.4.1
   toastification: ^3.0.3
   shimmer: ^3.0.0
+  animated_bottom_navigation_bar: ^1.4.1
+  flutter_screenutil: ^5.9.3
+  go_router: ^17.2.3
+  card_swiper: ^3.0.1
+  xml: ^6.5.0
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +37,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/lottie/
     # - images/a_dot_ham.jpeg
 
   # fonts:
