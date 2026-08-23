@@ -56,13 +56,6 @@ class FeaturedSwiper extends StatelessWidget {
                   color: AppColors.primaryLight.withAlpha(50),
                   width: 1,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withAlpha(50),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20.r),

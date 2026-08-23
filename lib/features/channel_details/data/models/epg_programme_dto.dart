@@ -72,10 +72,63 @@ class EpgProgrammeDto {
         }
       }
 
-      final utcDate = DateTime.utc(year, month, day, hour, minute, second);
-      return utcDate.subtract(Duration(minutes: offsetMinutes)).toLocal();
+      final utcDate = DateTime.utc(year, month, day, hour, minute, second)
+          .subtract(Duration(minutes: offsetMinutes));
+
+      final hoursToAdd = isSummerTime(utcDate) ? 3 : 2;
+      final adjusted = utcDate.add(Duration(hours: hoursToAdd));
+
+      return DateTime(
+        adjusted.year,
+        adjusted.month,
+        adjusted.day,
+        adjusted.hour,
+        adjusted.minute,
+        adjusted.second,
+      );
     } catch (_) {
       return null;
     }
+  }
+
+  static bool isSummerTime(DateTime dt) {
+    final year = dt.year;
+    final month = dt.month;
+
+    // May through September: Summer time (+3 hrs)
+    if (month >= 5 && month <= 9) {
+      return true;
+    }
+    // November through March: Winter time (+2 hrs)
+    if (month >= 11 || month <= 3) {
+      return false;
+    }
+
+    // April: Summer time starts on the last Friday of April
+    if (month == 4) {
+      int lastFridayDay = 30;
+      while (lastFridayDay >= 24) {
+        if (DateTime.utc(year, 4, lastFridayDay).weekday == DateTime.friday) {
+          break;
+        }
+        lastFridayDay--;
+      }
+      return dt.day >= lastFridayDay;
+    }
+
+    // October: Summer time ends on the last Thursday of October
+    if (month == 10) {
+      int lastThursdayDay = 31;
+      while (lastThursdayDay >= 25) {
+        if (DateTime.utc(year, 10, lastThursdayDay).weekday ==
+            DateTime.thursday) {
+          break;
+        }
+        lastThursdayDay--;
+      }
+      return dt.day <= lastThursdayDay;
+    }
+
+    return false;
   }
 }

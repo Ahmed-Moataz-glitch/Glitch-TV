@@ -3,7 +3,14 @@ import 'package:glitch_tv/core/view/widgets/app_section.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view/pages/channel_details_page.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view/pages/channel_stream_page.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
+import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
+import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dart';
+import 'package:glitch_tv/features/home/presentation/view/pages/podcast_player_page.dart';
+import 'package:glitch_tv/features/home/presentation/view/pages/radio_player_page.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:glitch_tv/features/podcast_details/domain/entities/podcast_episode_entity.dart';
+import 'package:glitch_tv/features/podcast_details/presentation/view/pages/podcast_details_page.dart';
 
 abstract class AppRouter {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -19,6 +26,12 @@ abstract class AppRouter {
   static const String channelDetailsName = 'channel-details';
   static const String watchStreamPath = '/watch-stream';
   static const String watchStreamName = 'watch-stream';
+  static const String radioPlayerPath = '/radio-player';
+  static const String radioPlayerName = 'radio-player';
+  static const String podcastDetailsPath = '/podcast-details';
+  static const String podcastDetailsName = 'podcast-details';
+  static const String podcastPlayerPath = '/podcast-player';
+  static const String podcastPlayerName = 'podcast-player';
   static late final GoRouter router;
 
   static void initializeRouter() {
@@ -48,16 +61,82 @@ abstract class AppRouter {
           path: channelDetailsPath,
           name: channelDetailsName,
           builder: (context, state) {
-            final item = state.extra as ChannelItemEntity;
-            return ChannelDetailsPage(channelItem: item);
+            if (state.extra is ChannelItemEntity) {
+              return ChannelDetailsPage(channelItem: state.extra as ChannelItemEntity);
+            }
+            return Scaffold(
+              appBar: AppBar(title: const Text('Channel Details')),
+              body: const Center(child: Text('Channel information not available')),
+            );
           },
         ),
         GoRoute(
           path: watchStreamPath,
           name: watchStreamName,
           builder: (context, state) {
-            final item = state.extra as ChannelItemEntity;
-            return ChannelStreamPage(channelItem: item);
+            if (state.extra is ChannelItemEntity) {
+              return ChannelStreamPage(channelItem: state.extra as ChannelItemEntity);
+            }
+            return Scaffold(
+              appBar: AppBar(title: const Text('Watch Stream')),
+              body: const Center(child: Text('Stream information not available')),
+            );
+          },
+        ),
+        GoRoute(
+          path: radioPlayerPath,
+          name: radioPlayerName,
+          builder: (context, state) {
+            if (state.extra is Map<String, dynamic>) {
+              final map = state.extra as Map<String, dynamic>;
+              return RadioPlayerPage(
+                station: map['station'] as RadioStationEntity,
+                stationsList:
+                    (map['stationsList'] as List<RadioStationEntity>?) ??
+                        const [],
+              );
+            }
+            final station = state.extra as RadioStationEntity;
+            return RadioPlayerPage(station: station);
+          },
+        ),
+        GoRoute(
+          path: podcastDetailsPath,
+          name: podcastDetailsName,
+          builder: (context, state) {
+            if (state.extra is Map<String, dynamic>) {
+              final map = state.extra as Map<String, dynamic>;
+              return PodcastDetailsPage(
+                podcast: map['podcast'] as PodcastEntity,
+                podcastsList:
+                    (map['podcastsList'] as List<PodcastEntity>?) ??
+                        const [],
+              );
+            }
+            final podcast = state.extra as PodcastEntity;
+            return PodcastDetailsPage(podcast: podcast);
+          },
+        ),
+        GoRoute(
+          path: podcastPlayerPath,
+          name: podcastPlayerName,
+          builder: (context, state) {
+            if (state.extra is Map<String, dynamic>) {
+              final map = state.extra as Map<String, dynamic>;
+              return PodcastPlayerPage(
+                podcast: map['podcast'] as PodcastEntity,
+                podcastsList:
+                    (map['podcastsList'] as List<PodcastEntity>?) ??
+                        const [],
+                initialEpisodes: (map['initialEpisodes']
+                        as List<PodcastEpisodeEntity>?) ??
+                    const [],
+                initialEpisodeIndex:
+                    (map['initialEpisodeIndex'] as num?)?.toInt() ?? 0,
+              );
+            }
+            final podcast = state.extra as PodcastEntity;
+            return PodcastPlayerPage(podcast: podcast);
           },
         ),
       ],

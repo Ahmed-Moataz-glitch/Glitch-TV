@@ -131,7 +131,11 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                     children: [
                       // Header Widget
                       ChannelInfoHeader(item: widget.channelItem),
-                      SizedBox(height: 24.h),
+                      SizedBox(height: 20.h),
+
+                      // Date Selector Tabs (Today / Tomorrow)
+                      if (state is ChannelDetailsSuccess)
+                        _buildDateSelector(state),
 
                       // EPG Section Title
                       Row(
@@ -146,7 +150,11 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                               ),
                               SizedBox(width: 8.w),
                               Text(
-                                "Today's EPG Guide",
+                                state is ChannelDetailsSuccess
+                                    ? (state.selectedDayIndex == 0
+                                        ? "Today's Programs"
+                                        : "Tomorrow's Programs")
+                                    : "EPG Guide",
                                 style: TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 18.sp,
@@ -166,7 +174,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                                 borderRadius: BorderRadius.circular(12.r),
                               ),
                               child: Text(
-                                '${state.todayProgrammes.length} shows',
+                                '${state.currentProgrammes.length} shows',
                                 style: TextStyle(
                                   color: AppColors.primaryLight,
                                   fontSize: 12.sp,
@@ -185,15 +193,15 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                       ] else if (state is ChannelDetailsError) ...[
                         _buildErrorView(state.message),
                       ] else if (state is ChannelDetailsSuccess) ...[
-                        if (state.todayProgrammes.isEmpty) ...[
-                          _buildEmptyView(),
+                        if (state.currentProgrammes.isEmpty) ...[
+                          _buildEmptyView(state.selectedDayIndex == 0),
                         ] else ...[
                           ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: state.todayProgrammes.length,
+                            itemCount: state.currentProgrammes.length,
                             itemBuilder: (context, index) {
-                              final prog = state.todayProgrammes[index];
+                              final prog = state.currentProgrammes[index];
                               return EpgCard(programme: prog);
                             },
                           ),
@@ -206,6 +214,138 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  String _formatDateShort(DateTime dt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  Widget _buildDateSelector(ChannelDetailsSuccess state) {
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+
+    final days = [
+      {
+        'label': 'Today',
+        'date': _formatDateShort(now),
+        'count': state.todayProgrammes.length,
+      },
+      {
+        'label': 'Tomorrow',
+        'date': _formatDateShort(tomorrow),
+        'count': state.tomorrowProgrammes.length,
+      },
+    ];
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.h),
+      padding: EdgeInsets.all(4.r),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: AppColors.textSecondary.withAlpha(20),
+        ),
+      ),
+      child: Row(
+        children: List.generate(days.length, (index) {
+          final isSelected = state.selectedDayIndex == index;
+          final day = days[index];
+
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                _cubit.selectDay(index);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(vertical: 10.h),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12.r),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withAlpha(80),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          day['label'] as String,
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6.w,
+                            vertical: 2.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.white.withAlpha(50)
+                                : AppColors.primary.withAlpha(30),
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child: Text(
+                            '${day['count']}',
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.primaryLight,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      day['date'] as String,
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.white.withAlpha(200)
+                            : AppColors.textSecondary,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -284,7 +424,8 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
     );
   }
 
-  Widget _buildEmptyView() {
+  Widget _buildEmptyView(bool isToday) {
+    final dayText = isToday ? 'today' : 'tomorrow';
     return Container(
       padding: EdgeInsets.all(32.r),
       width: double.infinity,
@@ -301,7 +442,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
           ),
           SizedBox(height: 12.h),
           Text(
-            'No guide available for today',
+            'No guide available for $dayText',
             style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 16.sp,
@@ -310,7 +451,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
           ),
           SizedBox(height: 4.h),
           Text(
-            'No EPG schedule data was found for this channel today.',
+            'No EPG schedule data was found for this channel $dayText.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textSecondary,

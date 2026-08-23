@@ -11,6 +11,8 @@ import 'package:glitch_tv/features/home/domain/repo/data_source/home_data_source
 import 'package:glitch_tv/features/home/domain/repo/repo/home_repo.dart';
 import 'package:glitch_tv/features/home/domain/use_case/fetch_channels_use_case.dart';
 import 'package:glitch_tv/features/home/domain/use_case/fetch_logos_use_case.dart';
+import 'package:glitch_tv/features/home/domain/use_case/fetch_podcasts_use_case.dart';
+import 'package:glitch_tv/features/home/domain/use_case/fetch_radio_stations_use_case.dart';
 import 'package:glitch_tv/features/home/presentation/view_model/home_cubit.dart';
 
 void main() {
@@ -36,9 +38,15 @@ class _MyAppState extends State<MyApp> {
     HomeRepo homeRepo = HomeRepoImpl(homeDataSource);
     FetchChannelsUseCase fetchChannelsUseCase = FetchChannelsUseCase(homeRepo);
     FetchLogosUseCase fetchLogosUseCase = FetchLogosUseCase(homeRepo);
+    FetchRadioStationsUseCase fetchRadioStationsUseCase =
+        FetchRadioStationsUseCase(homeRepo);
+    FetchPodcastsUseCase fetchPodcastsUseCase =
+        FetchPodcastsUseCase(homeRepo);
     _homeCubit = HomeCubit(
       fetchLogosUseCase: fetchLogosUseCase,
       fetchChannelsUseCase: fetchChannelsUseCase,
+      fetchRadioStationsUseCase: fetchRadioStationsUseCase,
+      fetchPodcastsUseCase: fetchPodcastsUseCase,
     );
   }
 

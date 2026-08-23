@@ -55,102 +55,89 @@ class _AppSectionState extends State<AppSection> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.card.withAlpha(50),
-              blurRadius: 20,
-              spreadRadius: 2,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: AnimatedBottomNavigationBar.builder(
-            itemCount: _pages.length,
-            activeIndex: _currentIndex,
-            height: 64.h,
-            gapLocation: GapLocation.none,
-            notchSmoothness: NotchSmoothness.smoothEdge,
-            elevation: 0,
-            backgroundColor: AppColors.card,
-            splashColor: AppColors.primary.withValues(alpha: 0.15),
-            splashSpeedInMilliseconds: 300,
-            onTap: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            tabBuilder: (index, isActive) {
-              final activeColor = AppColors.primary;
-              final color = isActive ? activeColor : AppColors.textSecondary;
-
-              return Center(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Active Top Indicator Pill
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                        height: 3.h,
-                        width: isActive ? 20.w : 0.w,
-                        decoration: BoxDecoration(
-                          color: isActive ? AppColors.primary : Colors.transparent,
-                          borderRadius: BorderRadius.circular(2.r),
-                          boxShadow: isActive
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.primary.withValues(alpha: 0.5),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : [],
-                        ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: AnimatedBottomNavigationBar.builder(
+          itemCount: _pages.length,
+          activeIndex: _currentIndex,
+          height: 64.h,
+          gapLocation: GapLocation.none,
+          notchSmoothness: NotchSmoothness.smoothEdge,
+          elevation: 0,
+          backgroundColor: AppColors.card,
+          splashColor: AppColors.primary.withValues(alpha: 0.15),
+          splashSpeedInMilliseconds: 300,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          tabBuilder: (index, isActive) {
+            final activeColor = AppColors.primary;
+            final color = isActive ? activeColor : AppColors.textSecondary;
+      
+            return Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Active Top Indicator Pill
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      height: 3.h,
+                      width: isActive ? 20.w : 0.w,
+                      decoration: BoxDecoration(
+                        color: isActive ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(2.r),
+                        boxShadow: isActive
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.5),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : [],
                       ),
-                      SizedBox(height: 2.h),
-
-                      // Icon with scale micro-animation
-                      AnimatedScale(
-                        scale: isActive ? 1.1 : 1.0,
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutBack,
-                        child: Icon(
-                          isActive ? _filledIcons[index] : _outlinedIcons[index],
-                          size: 24.sp,
-                          color: color,
-                        ),
+                    ),
+                    SizedBox(height: 2.h),
+      
+                    // Icon with scale micro-animation
+                    AnimatedScale(
+                      scale: isActive ? 1.1 : 1.0,
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutBack,
+                      child: Icon(
+                        isActive ? _filledIcons[index] : _outlinedIcons[index],
+                        size: 24.sp,
+                        color: color,
                       ),
-                      SizedBox(height: 2.h),
-
-                      // Label with font weight transition
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 200),
-                        style: TextStyle(
-                          fontFamily: 'Cairo',
-                          color: color,
-                          fontSize: 13.sp,
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                        ),
-                        child: Text(
-                          labels[index],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    ),
+                    SizedBox(height: 2.h),
+      
+                    // Label with font weight transition
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
+                      style: TextStyle(
+                        fontFamily: 'Cairo',
+                        color: color,
+                        fontSize: 13.sp,
+                        fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
                       ),
-                    ],
-                  ),
+                      child: Text(
+                        labels[index],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
       ),
     );

@@ -12,6 +12,8 @@ final class HomeSuccess extends HomeState {
   final List<ChannelItemEntity> featuredItems;
   final List<String> categories;
   final String selectedCategory;
+  final List<RadioStationEntity> radioStations;
+  final List<PodcastEntity> podcasts;
 
   HomeSuccess({
     required this.allItems,
@@ -19,6 +21,8 @@ final class HomeSuccess extends HomeState {
     required this.featuredItems,
     required this.categories,
     required this.selectedCategory,
+    this.radioStations = const [],
+    this.podcasts = const [],
   });
 }
 
