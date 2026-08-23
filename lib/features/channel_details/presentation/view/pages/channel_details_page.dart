@@ -12,6 +12,7 @@ import 'package:glitch_tv/features/channel_details/domain/use_case/fetch_epg_gui
 import 'package:glitch_tv/features/channel_details/presentation/view/widgets/channel_info_header.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view/widgets/epg_card.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view_model/channel_details_cubit.dart';
+import 'package:glitch_tv/features/favorites/presentation/view_model/favorites_cubit.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -31,7 +32,6 @@ class ChannelDetailsPage extends StatefulWidget {
 
 class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
   late final ChannelDetailsCubit _cubit;
-  bool _isFavorite = false;
 
   @override
   void initState() {
@@ -59,6 +59,9 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final channel = widget.channelItem.channel;
+    final isFavorite = context
+        .watch<FavoritesCubit>()
+        .isChannelFavorite(widget.channelItem.channel.id);
 
     return BlocProvider.value(
       value: _cubit,
@@ -87,16 +90,33 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
           actions: [
             IconButton(
               icon: Icon(
-                _isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: _isFavorite
+                isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: isFavorite
                     ? AppColors.primaryLight
                     : AppColors.textSecondary,
                 size: 22.sp,
               ),
-              onPressed: () {
-                setState(() {
-                  _isFavorite = !_isFavorite;
-                });
+              onPressed: () async {
+                final isNowFav = await context
+                    .read<FavoritesCubit>()
+                    .toggleFavorite(widget.channelItem);
+                if (context.mounted) {
+                  final channelDisplayName = channel.name.isNotEmpty
+                      ? channel.name
+                      : channel.id;
+                  AppToast.showToast(
+                    context: context,
+                    title: isNowFav
+                        ? 'Added to Favorites'
+                        : 'Removed from Favorites',
+                    description: isNowFav
+                        ? '$channelDisplayName added to your favorites.'
+                        : '$channelDisplayName removed from your favorites.',
+                    type: isNowFav
+                        ? ToastificationType.success
+                        : ToastificationType.info,
+                  );
+                }
               },
             ),
           ],
