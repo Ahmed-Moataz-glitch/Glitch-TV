@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_radio_player/flutter_radio_player.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
-import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dart';
-import 'package:toastification/toastification.dart';
+import 'package:share_plus/share_plus.dart';
 
 class RadioPlayerPage extends StatefulWidget {
   final RadioStationEntity station;
@@ -306,6 +305,28 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
     } catch (_) {}
   }
 
+  Future<void> _shareStation() async {
+    final station = _currentStation;
+    final tagsText =
+        station.tags.isNotEmpty ? '🎵 Genre: ${station.tags}\n' : '';
+    final countryText =
+        station.country.isNotEmpty ? '🌍 Country: ${station.country}\n' : '';
+    final streamUrl =
+        station.streamUrl.isNotEmpty ? '🔗 Stream: ${station.streamUrl}\n' : '';
+
+    final shareText =
+        '📻 Listen to "${station.name}" live on Glitch TV!\n$tagsText$countryText$streamUrl\nDiscover live radio stations & TV on Glitch TV.';
+
+    try {
+      await Share.share(
+        shareText,
+        subject: 'Listen to ${station.name} on Glitch TV',
+      );
+    } catch (e) {
+      debugPrint('Error sharing radio station: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -338,14 +359,8 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
               color: AppColors.primaryLight,
               size: 22.sp,
             ),
-            onPressed: () {
-              AppToast.showToast(
-                context: context,
-                title: 'Share Radio',
-                description: 'Sharing ${_currentStation.name}...',
-                type: ToastificationType.info,
-              );
-            },
+            tooltip: 'Share Station',
+            onPressed: _shareStation,
           ),
         ],
       ),

@@ -5,8 +5,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
+import 'package:glitch_tv/features/podcast_details/data/services/podcast_download_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:toastification/toastification.dart';
 import 'package:xml/xml.dart' as xml;
 
@@ -59,6 +61,7 @@ class PodcastPlayerPage extends StatefulWidget {
 class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     with SingleTickerProviderStateMixin {
   late final AudioPlayer _audioPlayer;
+  final PodcastDownloadService _downloadService = PodcastDownloadService();
 
   late List<PodcastEntity> _podcastsQueue;
   late int _currentPodcastIndex;
@@ -73,6 +76,13 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
   double _playbackSpeed = 1.0;
   double _volume = 1.0;
   bool _isMuted = false;
+
+  // Download state for currently active episode
+  bool _isDownloaded = false;
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
+  String _downloadedFileSize = '';
+  StreamSubscription<double>? _downloadProgressSub;
 
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<Duration>? _positionSub;
@@ -89,8 +99,9 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
         ? widget.podcastsList
         : [widget.podcast];
 
-    final foundIndex =
-        _podcastsQueue.indexWhere((element) => element.id == widget.podcast.id);
+    final foundIndex = _podcastsQueue.indexWhere(
+      (element) => element.id == widget.podcast.id,
+    );
     _currentPodcastIndex = foundIndex != -1 ? foundIndex : 0;
 
     _initAudioPlayer();
@@ -112,7 +123,8 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
           if (state.processingState == ProcessingState.completed) {
             _playNextEpisode();
           } else {
-            _isLoading = (state.processingState == ProcessingState.loading ||
+            _isLoading =
+                (state.processingState == ProcessingState.loading ||
                     state.processingState == ProcessingState.buffering) &&
                 !state.playing;
           }
@@ -139,6 +151,61 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     await _loadPodcastFeedAndPlay();
   }
 
+  Future<void> _checkDownloadStatus() async {
+    final ep = _currentEpisode;
+    if (ep == null) return;
+    _downloadProgressSub?.cancel();
+
+    final isDown = await _downloadService.isEpisodeDownloaded(
+      podcastId: _currentPodcast.id,
+      episodeTitle: ep.title,
+      audioUrl: ep.audioUrl,
+    );
+    final isDownloading = _downloadService.isDownloading(
+      _currentPodcast.id,
+      ep.audioUrl,
+    );
+    final progress = _downloadService.getDownloadProgress(
+      _currentPodcast.id,
+      ep.audioUrl,
+    );
+    String fileSize = '';
+    if (isDown) {
+      final size = await _downloadService.getDownloadedFileSize(
+        podcastId: _currentPodcast.id,
+        episodeTitle: ep.title,
+        audioUrl: ep.audioUrl,
+      );
+      fileSize = _downloadService.formatBytes(size);
+    }
+
+    if (mounted) {
+      setState(() {
+        _isDownloaded = isDown;
+        _isDownloading = isDownloading;
+        _downloadProgress = progress;
+        _downloadedFileSize = fileSize;
+      });
+    }
+
+    if (isDownloading) {
+      _downloadProgressSub = _downloadService
+          .getProgressStream(_currentPodcast.id, ep.audioUrl)
+          ?.listen((p) {
+            if (mounted) {
+              setState(() {
+                _downloadProgress = p;
+                if (p >= 1.0) {
+                  _isDownloading = false;
+                  _isDownloaded = true;
+                  _checkDownloadStatus();
+                }
+              });
+            }
+          });
+    }
+  }
+
   Future<void> _loadPodcastFeedAndPlay() async {
     if (mounted) {
       setState(() {
@@ -154,7 +221,8 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
         _episodesQueue = widget.initialEpisodes
             .map((e) => PodcastEpisode.fromEntity(e))
             .toList();
-        final startIndex = (widget.initialEpisodeIndex >= 0 &&
+        final startIndex =
+            (widget.initialEpisodeIndex >= 0 &&
                 widget.initialEpisodeIndex < _episodesQueue.length)
             ? widget.initialEpisodeIndex
             : 0;
@@ -214,15 +282,16 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
   Future<List<PodcastEpisode>> _fetchEpisodesFromFeed(String feedUrl) async {
     if (feedUrl.isEmpty) return [];
     try {
-      final response = await http.get(
-        Uri.parse(feedUrl),
-        headers: const {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept':
-              'application/rss+xml, application/xml, text/xml, */*',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse(feedUrl),
+            headers: const {
+              'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final bodyText = utf8.decode(response.bodyBytes, allowMalformed: true);
@@ -247,15 +316,12 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     : _currentPodcast.name;
 
                 final pubDateEl = item.findElements('pubDate');
-                final pubDate =
-                    pubDateEl.isNotEmpty ? pubDateEl.first.innerText : '';
+                final pubDate = pubDateEl.isNotEmpty
+                    ? pubDateEl.first.innerText
+                    : '';
 
                 episodes.add(
-                  PodcastEpisode(
-                    title: title,
-                    audioUrl: url,
-                    pubDate: pubDate,
-                  ),
+                  PodcastEpisode(title: title, audioUrl: url, pubDate: pubDate),
                 );
               }
             }
@@ -285,14 +351,30 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
       final ep = _episodesQueue[index];
       await _audioPlayer.stop();
 
-      final audioSource = AudioSource.uri(
-        Uri.parse(ep.audioUrl),
-        headers: const {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': '*/*',
-        },
+      // Check download status for UI & offline source selection
+      await _checkDownloadStatus();
+
+      // Check if episode is stored locally on device for offline playback
+      final downloadedFile = await _downloadService.getDownloadedFile(
+        podcastId: _currentPodcast.id,
+        episodeTitle: ep.title,
+        audioUrl: ep.audioUrl,
       );
+
+      AudioSource audioSource;
+      if (downloadedFile != null && await downloadedFile.exists()) {
+        audioSource = AudioSource.file(downloadedFile.path);
+      } else {
+        audioSource = AudioSource.uri(
+          Uri.parse(ep.audioUrl),
+          headers: const {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+          },
+        );
+      }
+
       await _audioPlayer.setAudioSource(audioSource);
       await _audioPlayer.play();
     } catch (e) {
@@ -309,6 +391,213 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
       if (mounted) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleDownloadAction() async {
+    final ep = _currentEpisode;
+    if (ep == null) return;
+
+    if (_isDownloading) {
+      AppToast.showToast(
+        context: context,
+        title: 'Downloading Episode',
+        description:
+            'Download is currently in progress (${(_downloadProgress * 100).toInt()}%)...',
+        type: ToastificationType.info,
+      );
+      return;
+    }
+
+    if (_isDownloaded) {
+      // Show bottom sheet to manage / delete download
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        ),
+        builder: (ctx) {
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40.w,
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      color: AppColors.textSecondary.withAlpha(80),
+                      borderRadius: BorderRadius.circular(2.r),
+                    ),
+                  ),
+                  SizedBox(height: 16.h),
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(10.r),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight.withAlpha(25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.offline_pin_rounded,
+                          color: AppColors.primaryLight,
+                          size: 32.sp,
+                        ),
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Downloaded to Podcasts Folder',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 2.h),
+                            Text(
+                              _downloadedFileSize.isNotEmpty
+                                  ? 'File Size: $_downloadedFileSize • Saved in Podcasts'
+                                  : 'Stored in device Podcasts folder',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20.h),
+                  ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    tileColor: Colors.redAccent.withAlpha(20),
+                    leading: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Colors.redAccent,
+                    ),
+                    title: Text(
+                      'Delete Download',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14.sp,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Remove file from device storage',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11.sp,
+                      ),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _downloadService.deleteDownloadedEpisode(
+                        podcastId: _currentPodcast.id,
+                        episodeTitle: ep.title,
+                        audioUrl: ep.audioUrl,
+                      );
+                      await _checkDownloadStatus();
+                      if (mounted) {
+                        AppToast.showToast(
+                          context: context,
+                          title: 'Download Removed',
+                          description:
+                              'Episode was deleted from Podcasts folder.',
+                          type: ToastificationType.info,
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    // Start download
+    setState(() {
+      _isDownloading = true;
+      _isDownloaded = false;
+      _downloadProgress = 0.0;
+    });
+
+    AppToast.showToast(
+      context: context,
+      title: 'Download Started',
+      description: 'Downloading "${ep.title}" to Podcasts folder...',
+      type: ToastificationType.info,
+    );
+
+    try {
+      await _downloadService.downloadEpisode(
+        podcastId: _currentPodcast.id,
+        episodeTitle: ep.title,
+        audioUrl: ep.audioUrl,
+        onProgress: (p) {
+          if (mounted) {
+            setState(() {
+              _downloadProgress = p;
+              if (p >= 1.0) {
+                _isDownloading = false;
+                _isDownloaded = true;
+              }
+            });
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+          _isDownloaded = true;
+          _downloadProgress = 1.0;
+        });
+      }
+
+      await _checkDownloadStatus();
+
+      if (mounted) {
+        AppToast.showToast(
+          context: context,
+          title: 'Download Complete',
+          description: '"${ep.title}" saved to device Podcasts folder!',
+          type: ToastificationType.success,
+        );
+      }
+    } catch (e) {
+      debugPrint('Download error: $e');
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+          _isDownloaded = false;
+        });
+        AppToast.showToast(
+          context: context,
+          title: 'Download Failed',
+          description: 'Could not download episode: $e',
+          type: ToastificationType.error,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
         });
       }
     }
@@ -335,7 +624,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
       // Move to previous podcast show in playlist
       final prevPodcastIndex =
           (_currentPodcastIndex - 1 + _podcastsQueue.length) %
-              _podcastsQueue.length;
+          _podcastsQueue.length;
       setState(() {
         _currentPodcastIndex = prevPodcastIndex;
       });
@@ -345,6 +634,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
 
   @override
   void dispose() {
+    _downloadProgressSub?.cancel();
     _playerStateSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
@@ -390,8 +680,11 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
           ),
           title: Row(
             children: [
-              Icon(Icons.speed_rounded,
-                  color: AppColors.primaryLight, size: 22.sp),
+              Icon(
+                Icons.speed_rounded,
+                color: AppColors.primaryLight,
+                size: 22.sp,
+              ),
               SizedBox(width: 8.w),
               Text(
                 'Playback Speed',
@@ -411,22 +704,25 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r),
                 ),
-                tileColor:
-                    isSelected ? AppColors.primary.withAlpha(40) : null,
+                tileColor: isSelected ? AppColors.primary.withAlpha(40) : null,
                 title: Text(
                   '${speed}x${speed == 1.0 ? ' (Normal)' : ''}',
                   style: TextStyle(
                     color: isSelected
                         ? AppColors.primaryLight
                         : AppColors.textPrimary,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                     fontSize: 15.sp,
                   ),
                 ),
                 trailing: isSelected
-                    ? Icon(Icons.check_circle_rounded,
-                        color: AppColors.primaryLight, size: 20.sp)
+                    ? Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primaryLight,
+                        size: 20.sp,
+                      )
                     : null,
                 onTap: () {
                   Navigator.pop(context);
@@ -510,8 +806,9 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     runSpacing: 8.h,
                     alignment: WrapAlignment.center,
                     children: [0.0, 0.25, 0.5, 0.75, 1.0].map((level) {
-                      final label =
-                          level == 0.0 ? 'Mute' : '${(level * 100).toInt()}%';
+                      final label = level == 0.0
+                          ? 'Mute'
+                          : '${(level * 100).toInt()}%';
                       final isSel = (currentVol - level).abs() < 0.05;
                       return ChoiceChip(
                         label: Text(label),
@@ -521,8 +818,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                         labelStyle: TextStyle(
                           color: isSel ? Colors.white : AppColors.textPrimary,
                           fontSize: 12.sp,
-                          fontWeight:
-                              isSel ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
                         ),
                         onSelected: (_) {
                           setDialogState(() {
@@ -573,11 +869,36 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     return '$minutes:$seconds';
   }
 
-  PodcastEpisode? get _currentEpisode => _episodesQueue.isNotEmpty &&
+  PodcastEpisode? get _currentEpisode =>
+      _episodesQueue.isNotEmpty &&
           _currentEpisodeIndex >= 0 &&
           _currentEpisodeIndex < _episodesQueue.length
       ? _episodesQueue[_currentEpisodeIndex]
       : null;
+
+  Future<void> _sharePodcast() async {
+    final ep = _currentEpisode;
+    final epTitle = ep?.title ?? _currentPodcast.name;
+    final host = _currentPodcast.host.isNotEmpty ? ' by ${_currentPodcast.host}' : '';
+    final audioUrl = ep?.audioUrl.isNotEmpty == true
+        ? ep!.audioUrl
+        : (_currentPodcast.feedUrl.isNotEmpty ? _currentPodcast.feedUrl : '');
+    final duration = ep?.duration.isNotEmpty == true ? '⏱️ Duration: ${ep!.duration}\n' : '';
+    final category = _currentPodcast.category.isNotEmpty ? '🏷️ Category: ${_currentPodcast.category}\n' : '';
+    final linkText = audioUrl.isNotEmpty ? '🔗 Listen: $audioUrl\n' : '';
+
+    final shareText =
+        '🎙️ Listen to "$epTitle"$host on Glitch TV!\n\n🎧 Podcast: ${_currentPodcast.name}\n$category$duration$linkText\nEnjoy podcasts, radio & TV on Glitch TV.';
+
+    try {
+      await Share.share(
+        shareText,
+        subject: 'Listen to "$epTitle" on Glitch TV',
+      );
+    } catch (e) {
+      debugPrint('Error sharing podcast: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -590,8 +911,11 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary, size: 20.sp),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.textPrimary,
+            size: 20.sp,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -604,17 +928,57 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
         ),
         centerTitle: true,
         actions: [
+          // Download Action Button
           IconButton(
-            icon: Icon(Icons.share_rounded,
-                color: AppColors.primaryLight, size: 22.sp),
-            onPressed: () {
-              AppToast.showToast(
-                context: context,
-                title: 'Share Podcast',
-                description: 'Sharing ${_currentPodcast.name}...',
-                type: ToastificationType.info,
-              );
-            },
+            tooltip: _isDownloaded
+                ? 'Downloaded (Tap to manage)'
+                : 'Download Episode',
+            icon: (_isDownloading && !_isDownloaded && _downloadProgress < 1.0)
+                ? SizedBox(
+                    width: 36.r,
+                    height: 36.r,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: _downloadProgress > 0
+                              ? _downloadProgress
+                              : null,
+                          color: AppColors.primaryLight,
+                          strokeWidth: 2.5.r,
+                        ),
+                        Text(
+                          _downloadProgress > 0
+                              ? '${(_downloadProgress * 100).toInt()}%'
+                              : '',
+                          style: TextStyle(
+                            fontSize: 9.sp,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Icon(
+                    _isDownloaded
+                        ? Icons.download_done_rounded
+                        : Icons.file_download_outlined,
+                    color: _isDownloaded
+                        ? AppColors.primaryLight
+                        : AppColors.textPrimary,
+                    size: 24.sp,
+                  ),
+            onPressed: _handleDownloadAction,
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.share_rounded,
+              color: AppColors.primaryLight,
+              size: 22.sp,
+            ),
+            tooltip: 'Share Podcast',
+            onPressed: _sharePodcast,
           ),
         ],
       ),
@@ -623,13 +987,15 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
           padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
           child: Column(
             children: [
-              // Podcast Category & Episode Badge
+              // Podcast Category & Episode Badge & Offline Pill
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
                     padding: EdgeInsets.symmetric(
-                        horizontal: 14.w, vertical: 6.h),
+                      horizontal: 14.w,
+                      vertical: 6.h,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withAlpha(30),
                       borderRadius: BorderRadius.circular(20.r),
@@ -653,7 +1019,9 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     SizedBox(width: 8.w),
                     Container(
                       padding: EdgeInsets.symmetric(
-                          horizontal: 12.w, vertical: 6.h),
+                        horizontal: 12.w,
+                        vertical: 6.h,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.circular(20.r),
@@ -671,10 +1039,46 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                       ),
                     ),
                   ],
+                  if (_isDownloaded) ...[
+                    SizedBox(width: 8.w),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10.w,
+                        vertical: 6.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight.withAlpha(25),
+                        borderRadius: BorderRadius.circular(20.r),
+                        border: Border.all(
+                          color: AppColors.primaryLight.withAlpha(80),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.offline_pin_rounded,
+                            size: 16.sp,
+                            color: AppColors.primaryLight,
+                          ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            'OFFLINE',
+                            style: TextStyle(
+                              color: AppColors.primaryLight,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
 
-              SizedBox(height: size.height * 0.03),
+              SizedBox(height: size.height * 0.04),
 
               // Podcast Artwork Cover
               Center(
@@ -714,7 +1118,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                 ),
               ),
 
-              SizedBox(height: 24.h),
+              SizedBox(height: 32.h),
 
               // Episode Title & Host
               Text(
@@ -728,7 +1132,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 24.h),
+              SizedBox(height: 16.h),
               Text(
                 _currentPodcast.host.isNotEmpty
                     ? 'By ${_currentPodcast.host}'
@@ -754,14 +1158,18 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                       thumbColor: AppColors.primaryLight,
                       overlayColor: AppColors.primary.withAlpha(40),
                       trackHeight: 4.h,
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6,
+                      ),
                     ),
                     child: Slider(
                       padding: EdgeInsets.symmetric(vertical: 12.h),
-                      value: _position.inSeconds
-                          .toDouble()
-                          .clamp(0.0, _duration.inSeconds.toDouble() > 0 ? _duration.inSeconds.toDouble() : 1.0),
+                      value: _position.inSeconds.toDouble().clamp(
+                        0.0,
+                        _duration.inSeconds.toDouble() > 0
+                            ? _duration.inSeconds.toDouble()
+                            : 1.0,
+                      ),
                       min: 0.0,
                       max: _duration.inSeconds > 0
                           ? _duration.inSeconds.toDouble()
@@ -804,7 +1212,9 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     onTap: _showSpeedDialog,
                     child: Container(
                       padding: EdgeInsets.symmetric(
-                          horizontal: 8.w, vertical: 6.h),
+                        horizontal: 8.w,
+                        vertical: 6.h,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.circular(12.r),
@@ -816,7 +1226,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                         '${_playbackSpeed}x',
                         style: TextStyle(
                           color: AppColors.primaryLight,
-                          fontSize: 12.sp,
+                          fontSize: 12.5.sp,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -825,7 +1235,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
 
                   // Previous Episode
                   IconButton(
-                    iconSize: 28.sp,
+                    iconSize: 32.sp,
                     icon: Icon(
                       Icons.skip_previous_rounded,
                       color: AppColors.textPrimary,
@@ -835,7 +1245,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
 
                   // Rewind 10s
                   IconButton(
-                    iconSize: 26.sp,
+                    iconSize: 32.sp,
                     icon: Icon(
                       Icons.replay_10_rounded,
                       color: AppColors.textPrimary,
@@ -876,7 +1286,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
 
                   // Forward 10s
                   IconButton(
-                    iconSize: 26.sp,
+                    iconSize: 32.sp,
                     icon: Icon(
                       Icons.forward_10_rounded,
                       color: AppColors.textPrimary,
@@ -886,7 +1296,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
 
                   // Next Episode
                   IconButton(
-                    iconSize: 28.sp,
+                    iconSize: 32.sp,
                     icon: Icon(
                       Icons.skip_next_rounded,
                       color: AppColors.textPrimary,
@@ -896,7 +1306,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
 
                   // Volume Dialog Button
                   IconButton(
-                    iconSize: 26.sp,
+                    iconSize: 32.sp,
                     icon: Icon(
                       _isMuted || _volume == 0
                           ? Icons.volume_off_rounded
