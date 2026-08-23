@@ -5,17 +5,25 @@ import 'package:glitch_tv/features/home/data/models/channels_model.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
 import 'package:glitch_tv/features/home/domain/entities/channels_response_entity.dart';
 import 'package:glitch_tv/features/home/domain/entities/logos_response_entity.dart';
+import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
+import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dart';
 import 'package:glitch_tv/features/home/domain/use_case/fetch_channels_use_case.dart';
 import 'package:glitch_tv/features/home/domain/use_case/fetch_logos_use_case.dart';
+import 'package:glitch_tv/features/home/domain/use_case/fetch_podcasts_use_case.dart';
+import 'package:glitch_tv/features/home/domain/use_case/fetch_radio_stations_use_case.dart';
 
 part 'home_state.dart';
 
 class HomeCubit extends Cubit<HomeState> {
   final FetchLogosUseCase fetchLogosUseCase;
   final FetchChannelsUseCase fetchChannelsUseCase;
+  final FetchRadioStationsUseCase fetchRadioStationsUseCase;
+  final FetchPodcastsUseCase fetchPodcastsUseCase;
 
   List<ChannelItemEntity> _allItemEntities = [];
   List<ChannelItemEntity> _featuredItemEntities = [];
+  List<RadioStationEntity> _radioStations = [];
+  List<PodcastEntity> _podcasts = [];
   List<String> _categories = ['All'];
   String _selectedCategory = 'All';
   String _searchQuery = '';
@@ -24,6 +32,8 @@ class HomeCubit extends Cubit<HomeState> {
   HomeCubit({
     required this.fetchLogosUseCase,
     required this.fetchChannelsUseCase,
+    required this.fetchRadioStationsUseCase,
+    required this.fetchPodcastsUseCase,
   }) : super(HomeInitial());
 
   @override
@@ -38,10 +48,14 @@ class HomeCubit extends Cubit<HomeState> {
       final results = await Future.wait([
         fetchLogosUseCase.call(),
         fetchChannelsUseCase.call(),
+        fetchRadioStationsUseCase.call(),
+        fetchPodcastsUseCase.call(),
       ]);
 
       final logosResult = results[0] as ApiResult<List<LogosResponseEntity>>;
       final channelsResult = results[1] as ApiResult<List<ChannelsResponseEntity>>;
+      final radioResult = results[2] as ApiResult<List<RadioStationEntity>>;
+      final podcastsResult = results[3] as ApiResult<List<PodcastEntity>>;
 
       List<LogosResponseEntity> logosList = [];
       List<ChannelsResponseEntity> channelsList = [];
@@ -55,6 +69,14 @@ class HomeCubit extends Cubit<HomeState> {
 
       if (channelsResult is ApiSuccess<List<ChannelsResponseEntity>>) {
         channelsList = channelsResult.data ?? [];
+      }
+
+      if (radioResult is ApiSuccess<List<RadioStationEntity>>) {
+        _radioStations = radioResult.data ?? [];
+      }
+
+      if (podcastsResult is ApiSuccess<List<PodcastEntity>>) {
+        _podcasts = podcastsResult.data ?? [];
       }
 
       // Build channel lookup map by lowercased ID
@@ -175,6 +197,8 @@ class HomeCubit extends Cubit<HomeState> {
       featuredItems: _featuredItemEntities,
       categories: _categories,
       selectedCategory: _selectedCategory,
+      radioStations: _radioStations,
+      podcasts: _podcasts,
     ));
   }
 

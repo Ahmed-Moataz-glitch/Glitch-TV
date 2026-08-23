@@ -84,12 +84,23 @@ class ChannelDetailsCubit extends Cubit<ChannelDetailsState> {
             return false;
           }).toList();
 
-          // Filter specifically for Today
+          final now = DateTime.now();
+          final tomorrow = now.add(const Duration(days: 1));
+
+          // Filter for Today and Tomorrow
           final todayProgrammes =
-              matchedProgrammes.where((p) => p.isToday).toList();
+              matchedProgrammes.where((p) => p.isOnDate(now)).toList();
+          final tomorrowProgrammes =
+              matchedProgrammes.where((p) => p.isOnDate(tomorrow)).toList();
 
           // Sort chronologically
           todayProgrammes.sort((a, b) {
+            if (a.startTime == null) return -1;
+            if (b.startTime == null) return 1;
+            return a.startTime!.compareTo(b.startTime!);
+          });
+
+          tomorrowProgrammes.sort((a, b) {
             if (a.startTime == null) return -1;
             if (b.startTime == null) return 1;
             return a.startTime!.compareTo(b.startTime!);
@@ -104,16 +115,29 @@ class ChannelDetailsCubit extends Cubit<ChannelDetailsState> {
             }
           }
 
+          final currentSelectedDay = state is ChannelDetailsSuccess
+              ? (state as ChannelDetailsSuccess).selectedDayIndex
+              : 0;
+
           emit(ChannelDetailsSuccess(
             todayProgrammes: todayProgrammes,
+            tomorrowProgrammes: tomorrowProgrammes,
             currentLiveProgramme: currentLive,
             channelItem: channelItem,
+            selectedDayIndex: currentSelectedDay,
           ));
         case ApiError<List<EpgProgrammeEntity>>():
           emit(ChannelDetailsError(result.message));
       }
     } catch (e) {
       emit(ChannelDetailsError('Failed to load EPG: ${e.toString()}'));
+    }
+  }
+
+  void selectDay(int index) {
+    if (state is ChannelDetailsSuccess) {
+      final currentState = state as ChannelDetailsSuccess;
+      emit(currentState.copyWith(selectedDayIndex: index));
     }
   }
 }
