@@ -3,6 +3,7 @@ List<String> channels = [
   'MBCMasr2.eg',
   'MBCMasr.eg',
   'OmanTV.om',
+  'Alarabiya.ae',
   'AlResalah.sa',
   'LBC.sa',
   'RotanaCinemaEgypt.eg',
