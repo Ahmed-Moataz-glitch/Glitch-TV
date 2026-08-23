@@ -1,11 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_toast.dart';
+import 'package:glitch_tv/features/favorites/presentation/view_model/favorites_cubit.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:toastification/toastification.dart';
 
-class ChannelCard extends StatefulWidget {
+class ChannelCard extends StatelessWidget {
   final ChannelItemEntity item;
   final VoidCallback? onTap;
 
@@ -16,23 +20,20 @@ class ChannelCard extends StatefulWidget {
   });
 
   @override
-  State<ChannelCard> createState() => _ChannelCardState();
-}
-
-class _ChannelCardState extends State<ChannelCard> {
-  bool _isFavorite = false;
-
-  @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final channel = widget.item.channel;
-    final logoUrl = widget.item.logoUrl;
-    final category = channel.categories.isNotEmpty ? channel.categories.first : 'TV';
+    final channel = item.channel;
+    final logoUrl = item.logoUrl;
+    final category =
+        channel.categories.isNotEmpty ? channel.categories.first : 'TV';
+
+    final favoritesCubit = context.watch<FavoritesCubit>();
+    final isFavorite = favoritesCubit.isChannelFavorite(channel.id);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: widget.onTap,
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16.r),
         child: Container(
           decoration: BoxDecoration(
@@ -61,7 +62,8 @@ class _ChannelCardState extends State<ChannelCard> {
                       width: size.width,
                       decoration: BoxDecoration(
                         color: AppColors.textSecondary.withAlpha(200),
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(16.r)),
                       ),
                       padding: EdgeInsets.all(12.r),
                       child: Center(
@@ -69,9 +71,11 @@ class _ChannelCardState extends State<ChannelCard> {
                             ? CachedNetworkImage(
                                 imageUrl: logoUrl,
                                 fit: BoxFit.contain,
-                                placeholder: (context, url) => Shimmer.fromColors(
+                                placeholder: (context, url) =>
+                                    Shimmer.fromColors(
                                   baseColor: AppColors.card,
-                                  highlightColor: AppColors.primary.withAlpha(40),
+                                  highlightColor:
+                                      AppColors.primary.withAlpha(40),
                                   child: Container(color: AppColors.card),
                                 ),
                                 errorWidget: (context, url, error) => Icon(
@@ -91,10 +95,27 @@ class _ChannelCardState extends State<ChannelCard> {
                       top: 8.r,
                       right: 8.r,
                       child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isFavorite = !_isFavorite;
-                          });
+                        onTap: () async {
+                          final isNowFav = await context
+                              .read<FavoritesCubit>()
+                              .toggleFavorite(item);
+                          if (context.mounted) {
+                            final channelDisplayName = channel.name.isNotEmpty
+                                ? channel.name
+                                : channel.id;
+                            AppToast.showToast(
+                              context: context,
+                              title: isNowFav
+                                  ? 'Added to Favorites'
+                                  : 'Removed from Favorites',
+                              description: isNowFav
+                                  ? '$channelDisplayName added to your favorites.'
+                                  : '$channelDisplayName removed from your favorites.',
+                              type: isNowFav
+                                  ? ToastificationType.success
+                                  : ToastificationType.info,
+                            );
+                          }
                         },
                         child: Container(
                           padding: EdgeInsets.all(6.r),
@@ -103,9 +124,13 @@ class _ChannelCardState extends State<ChannelCard> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            _isFavorite ? Icons.favorite : Icons.favorite_border,
+                            isFavorite
+                                ? Icons.favorite
+                                : Icons.favorite_border,
                             size: 24.sp,
-                            color: _isFavorite ? AppColors.primaryLight : AppColors.textSecondary,
+                            color: isFavorite
+                                ? AppColors.primaryLight
+                                : AppColors.textSecondary,
                           ),
                         ),
                       ),
@@ -115,7 +140,10 @@ class _ChannelCardState extends State<ChannelCard> {
                         top: 8.r,
                         left: 8.r,
                         child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 4.h),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6.w,
+                            vertical: 4.h,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withAlpha(180),
                             borderRadius: BorderRadius.circular(6.r),
@@ -153,7 +181,10 @@ class _ChannelCardState extends State<ChannelCard> {
                     Row(
                       children: [
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 4.h,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primaryDark.withAlpha(100),
                             borderRadius: BorderRadius.circular(8.r),
