@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
 
 class PodcastInfoHeader extends StatelessWidget {
@@ -16,14 +17,18 @@ class PodcastInfoHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(20.r),
         border: Border.all(
-          color: AppColors.textSecondary.withAlpha(25),
+          color: context.isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
         ),
       ),
       child: Column(
@@ -37,7 +42,7 @@ class PodcastInfoHeader extends StatelessWidget {
                 width: 100.w,
                 height: 100.h,
                 decoration: BoxDecoration(
-                  color: AppColors.scaffoldBackground,
+                  color: context.cardBg,
                   borderRadius: BorderRadius.circular(16.r),
                   border: Border.all(
                     color: AppColors.primaryLight.withAlpha(50),
@@ -91,43 +96,28 @@ class PodcastInfoHeader extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.textPrimary,
                         fontSize: 17.sp,
                         fontWeight: FontWeight.bold,
                         height: 1.2,
                       ),
                     ),
                     if (podcast.host.isNotEmpty) ...[
-                      SizedBox(height: 6.h),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person_rounded,
-                            color: AppColors.primaryLight,
-                            size: 14.sp,
-                          ),
-                          SizedBox(width: 4.w),
-                          Expanded(
-                            child: Text(
-                              podcast.host,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
+                      SizedBox(height: 4.h),
+                      Text(
+                        'By ${podcast.host}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.textSecondary,
+                          fontSize: 12.sp,
+                        ),
                       ),
                     ],
                     SizedBox(height: 8.h),
-
-                    // Badges Row (Category & Episode count)
                     Wrap(
-                      spacing: 8.w,
-                      runSpacing: 6.h,
+                      spacing: 6.w,
+                      runSpacing: 4.h,
                       children: [
                         if (podcast.category.isNotEmpty)
                           Container(
@@ -136,30 +126,16 @@ class PodcastInfoHeader extends StatelessWidget {
                               vertical: 3.h,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withAlpha(35),
-                              borderRadius: BorderRadius.circular(8.r),
-                              border: Border.all(
-                                color: AppColors.primaryLight.withAlpha(60),
-                              ),
+                              color: AppColors.primary.withAlpha(context.isDark ? 30 : 20),
+                              borderRadius: BorderRadius.circular(6.r),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.category_rounded,
-                                  color: AppColors.primaryLight,
-                                  size: 11.sp,
-                                ),
-                                SizedBox(width: 4.w),
-                                Text(
-                                  podcast.category,
-                                  style: TextStyle(
-                                    color: AppColors.primaryLight,
-                                    fontSize: 11.sp,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              podcast.category,
+                              style: TextStyle(
+                                color: AppColors.primaryLight,
+                                fontSize: 11.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         if (podcast.episodesCount > 0)
@@ -169,30 +145,21 @@ class PodcastInfoHeader extends StatelessWidget {
                               vertical: 3.h,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.scaffoldBackground,
-                              borderRadius: BorderRadius.circular(8.r),
+                              color: context.cardBg,
+                              borderRadius: BorderRadius.circular(6.r),
                               border: Border.all(
-                                color: AppColors.textSecondary.withAlpha(30),
+                                color: context.isDark
+                                    ? Colors.white.withValues(alpha: 0.1)
+                                    : Colors.black.withValues(alpha: 0.1),
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.layers_rounded,
-                                  color: AppColors.textSecondary,
-                                  size: 11.sp,
-                                ),
-                                SizedBox(width: 4.w),
-                                Text(
-                                  '${podcast.episodesCount} Episodes',
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 11.sp,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              '${podcast.episodesCount} EP',
+                              style: TextStyle(
+                                color: context.textSecondary,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                       ],
@@ -203,28 +170,25 @@ class PodcastInfoHeader extends StatelessWidget {
             ],
           ),
           if (onPlayLatest != null) ...[
-            SizedBox(height: 16.h),
+            SizedBox(height: 14.h),
             SizedBox(
               width: double.infinity,
+              height: 44.h,
               child: ElevatedButton.icon(
                 onPressed: onPlayLatest,
-                icon: Icon(Icons.play_arrow_rounded, size: 22.sp),
+                icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
                 label: Text(
-                  'Play Latest Episode',
-                  style: TextStyle(
-                    fontSize: 14.sp,
+                  l10n?.nowPlayingPodcast ?? 'Play Latest Episode',
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12.h),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14.r),
+                    borderRadius: BorderRadius.circular(12.r),
                   ),
-                  elevation: 4,
-                  shadowColor: AppColors.primary.withAlpha(120),
                 ),
               ),
             ),

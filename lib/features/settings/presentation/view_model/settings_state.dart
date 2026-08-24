@@ -1,5 +1,21 @@
-part of 'settings_cubit.dart';
+import 'package:flutter/material.dart';
 
-sealed class SettingsState {}
+class SettingsState {
+  final ThemeMode themeMode;
+  final Locale locale;
 
-final class SettingsInitial extends SettingsState {}
+  const SettingsState({
+    this.themeMode = ThemeMode.system,
+    this.locale = const Locale('en'),
+  });
+
+  SettingsState copyWith({
+    ThemeMode? themeMode,
+    Locale? locale,
+  }) {
+    return SettingsState(
+      themeMode: themeMode ?? this.themeMode,
+      locale: locale ?? this.locale,
+    );
+  }
+}

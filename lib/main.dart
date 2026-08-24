@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_constants.dart';
 import 'package:glitch_tv/core/utils/app_router.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
+import 'package:glitch_tv/l10n/app_localizations.dart';
 import 'package:glitch_tv/features/favorites/data/repo/data_source/favorites_local_data_source_impl.dart';
 import 'package:glitch_tv/features/favorites/data/repo/repo/favorites_repo_impl.dart';
 import 'package:glitch_tv/features/favorites/domain/repo/data_source/favorites_local_data_source.dart';
@@ -21,6 +22,10 @@ import 'package:glitch_tv/features/home/domain/use_case/fetch_logos_use_case.dar
 import 'package:glitch_tv/features/home/domain/use_case/fetch_podcasts_use_case.dart';
 import 'package:glitch_tv/features/home/domain/use_case/fetch_radio_stations_use_case.dart';
 import 'package:glitch_tv/features/home/presentation/view_model/home_cubit.dart';
+import 'package:glitch_tv/features/settings/data/repo/data_source/settings_local_data_source_impl.dart';
+import 'package:glitch_tv/features/settings/domain/repo/data_source/settings_local_data_source.dart';
+import 'package:glitch_tv/features/settings/presentation/view_model/settings_cubit.dart';
+import 'package:glitch_tv/features/settings/presentation/view_model/settings_state.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {
@@ -40,6 +45,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late final HomeCubit _homeCubit;
   late final FavoritesCubit _favoritesCubit;
+  late final SettingsCubit _settingsCubit;
 
   @override
   void initState() {
@@ -74,12 +80,20 @@ class _MyAppState extends State<MyApp> {
       getFavoriteChannelsUseCase: getFavoriteChannelsUseCase,
       toggleFavoriteChannelUseCase: toggleFavoriteChannelUseCase,
     )..loadFavorites();
+
+    // Settings Cubit Setup
+    SettingsLocalDataSource settingsLocalDataSource =
+        SettingsLocalDataSourceImpl();
+    _settingsCubit = SettingsCubit(
+      localDataSource: settingsLocalDataSource,
+    )..loadSettings();
   }
 
   @override
   void dispose() {
     _homeCubit.close();
     _favoritesCubit.close();
+    _settingsCubit.close();
     super.dispose();
   }
 
@@ -94,15 +108,22 @@ class _MyAppState extends State<MyApp> {
           providers: [
             BlocProvider.value(value: _homeCubit),
             BlocProvider.value(value: _favoritesCubit),
+            BlocProvider.value(value: _settingsCubit),
           ],
-          child: MaterialApp.router(
-            debugShowCheckedModeBanner: false,
-            title: AppConstants.appName,
-            theme: ThemeData(
-              scaffoldBackgroundColor: AppColors.scaffoldBackground,
-              colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
-            ),
-            routerConfig: AppRouter.router,
+          child: BlocBuilder<SettingsCubit, SettingsState>(
+            builder: (context, settingsState) {
+              return MaterialApp.router(
+                debugShowCheckedModeBanner: false,
+                title: AppConstants.appName,
+                theme: AppTheme.lightTheme,
+                darkTheme: AppTheme.darkTheme,
+                themeMode: settingsState.themeMode,
+                locale: settingsState.locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                routerConfig: AppRouter.router,
+              );
+            },
           ),
         );
       },

@@ -1,0 +1,115 @@
+{
+  "@@locale": "en",
+  "appName": "Glitch TV",
+  "home": "Home",
+  "favorites": "Favorites",
+  "settings": "Settings",
+  "liveMediaStreams": "Live Media & Streams",
+  "live": "LIVE",
+  "all": "All",
+  "retry": "Retry",
+  "error": "Error",
+  "clear": "Clear",
+  "share": "Share",
+
+  "tv": "TV",
+  "radio": "Radio",
+  "podcasts": "Podcasts",
+
+  "searchTvChannels": "Search TV channels...",
+  "searchRadioStations": "Search radio stations...",
+  "searchPodcasts": "Search podcasts...",
+  "searchFavorites": "Search favorite channels...",
+  "noResultsFound": "No results found",
+  "noChannelsFound": "No channels available",
+  "noRadioStationsFound": "No radio stations found",
+  "noPodcastsFound": "No podcasts found",
+
+  "featuredChannels": "Featured Channels",
+  "allChannels": "All Channels",
+  "popularStations": "Popular Stations",
+  "allStations": "All Stations",
+  "trendingPodcasts": "Trending Podcasts",
+  "allPodcasts": "All Podcasts",
+  "categories": "Categories",
+
+  "categoryQuran": "Quran",
+  "categoryMusic": "Music",
+  "categoryNews": "News",
+  "categoryCulture": "Culture",
+  "categoryClassics": "Classics",
+
+  "categoryTechnology": "Technology",
+  "categoryBusiness": "Business",
+  "categoryStories": "Stories",
+  "categorySelfDev": "Self Development",
+  "categoryComedy": "Comedy",
+
+  "favoriteChannels": "Favorite Channels",
+  "noFavoritesYet": "No Favorite Channels Yet",
+  "noFavoritesDescription": "Add channels to your favorites by tapping the heart icon on any channel.",
+
+  "channelDetails": "Channel Details",
+  "watchStream": "Watch Stream",
+  "epgGuide": "TV Schedule & Guide",
+  "noEpgAvailable": "No schedule guide available for this channel",
+  "nowPlaying": "Now Playing",
+  "upcoming": "Upcoming",
+  "todaySchedule": "Today's Schedule",
+  "streamInterrupted": "Stream Interrupted",
+  "reconnectStream": "Reconnect Stream",
+  "reconnectPrompt": "Tap below to reconnect or switch feed",
+  "streamUnavailable": "Stream Unavailable",
+  "availableFeeds": "Available Stream Feeds ({count})",
+  "@availableFeeds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "fetchingStream": "Fetching channel stream...",
+  "fetchingGuide": "Fetching TV guide...",
+  "addedToFavorites": "Added to favorites",
+  "removedFromFavorites": "Removed from favorites",
+
+  "radioPlayer": "Radio Player",
+  "buffering": "Buffering...",
+  "playingLive": "Playing Live",
+  "paused": "Paused",
+  "liveRadio": "LIVE RADIO",
+  "moreStations": "More Stations",
+
+  "podcastDetails": "Podcast Details",
+  "episodes": "Episodes",
+  "episodesCount": "{count} Episodes",
+  "@episodesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noEpisodesFound": "No episodes available for this podcast",
+  "nowPlayingPodcast": "Now Playing",
+  "speed": "Speed",
+  "forward10": "10s",
+  "replay10": "10s",
+
+  "appearance": "Appearance",
+  "systemDefault": "System Default",
+  "systemDefaultDesc": "Follows your device system theme",
+  "lightMode": "Light Mode",
+  "lightModeDesc": "Clean and bright appearance",
+  "darkMode": "Dark Mode",
+  "darkModeDesc": "Deep dark purple theme for low light",
+  "language": "Language",
+  "appLanguage": "App Language",
+  "english": "English",
+  "arabic": "العربية",
+  "englishDefault": "English (Default)",
+  "arabicOption": "العربية (Arabic)",
+  "about": "About",
+  "appVersion": "Version 1.0.0",
+  "appDescription": "Stream live TV channels, listen to Egyptian and international radio stations, and enjoy top podcasts all in one place."
+}
