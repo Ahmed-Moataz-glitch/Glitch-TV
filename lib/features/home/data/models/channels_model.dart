@@ -4,6 +4,13 @@ List<String> channels = [
   'MBCMasr.eg',
   'OmanTV.om',
   'Alarabiya.ae',
+  'NogoumFMTV.eg',
+  'WatanTV.eg',
+  'AlQuranAlKareemTV.sa',
+  'OmanTVCultural.om',
+  'MonsterJam.us',
+  'RedBullTV.at',
+  'RallyTV.us',
   'AlResalah.sa',
   'LBC.sa',
   'RotanaCinemaEgypt.eg',
@@ -14,7 +21,6 @@ List<String> channels = [
   'RotanaDrama.sa',
   'RotanaKhalijia.sa',
   'RotanaMusic.sa',  
-  'NationalGeographicAbuDhabi.ae',
   'SpacetoonArabic.ae',
 ];
 

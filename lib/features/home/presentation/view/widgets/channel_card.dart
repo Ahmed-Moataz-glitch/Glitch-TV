@@ -65,11 +65,8 @@ class ChannelCard extends StatelessWidget {
                     Container(
                       width: size.width,
                       decoration: BoxDecoration(
-                        color: context.isDark
-                            ? AppColors.textSecondary.withAlpha(200)
-                            : const Color(0xFFEAE8F2),
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(16.r)),
+                        color: AppColors.textSecondary.withAlpha(100),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
                       ),
                       padding: EdgeInsets.all(12.r),
                       child: Center(

@@ -93,7 +93,7 @@ class FeaturedSwiper extends StatelessWidget {
                             height: 100.h,
                             padding: EdgeInsets.all(10.r),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
+                              color: AppColors.textSecondary.withAlpha(100),
                               borderRadius: BorderRadius.circular(16.r),
                             ),
                             child: item.logoUrl.isNotEmpty
