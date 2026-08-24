@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/features/channel_details/domain/entities/epg_programme_entity.dart';
 
 class EpgCard extends StatefulWidget {
@@ -22,17 +23,20 @@ class _EpgCardState extends State<EpgCard> {
   Widget build(BuildContext context) {
     final prog = widget.programme;
     final isLive = prog.isLive;
+    final l10n = context.l10n;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       margin: EdgeInsets.only(bottom: 12.h),
       decoration: BoxDecoration(
-        color: isLive ? AppColors.primary.withAlpha(25) : AppColors.card,
+        color: isLive ? AppColors.primary.withAlpha(25) : context.cardBg,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
           color: isLive
               ? AppColors.primaryLight
-              : AppColors.textSecondary.withAlpha(25),
+              : (context.isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.06)),
           width: isLive ? 1.5 : 1.0,
         ),
         boxShadow: isLive
@@ -45,7 +49,7 @@ class _EpgCardState extends State<EpgCard> {
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withAlpha(20),
+                  color: Colors.black.withValues(alpha: context.isDark ? 0.2 : 0.05),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -72,14 +76,14 @@ class _EpgCardState extends State<EpgCard> {
                         vertical: 4.h,
                       ),
                       decoration: BoxDecoration(
-                        color: isLive
-                            ? AppColors.primary
-                            : AppColors.card,
+                        color: isLive ? AppColors.primary : context.cardBg,
                         borderRadius: BorderRadius.circular(8.r),
                         border: Border.all(
                           color: isLive
                               ? Colors.transparent
-                              : AppColors.textSecondary.withAlpha(50),
+                              : (context.isDark
+                                  ? Colors.white.withValues(alpha: 0.1)
+                                  : Colors.black.withValues(alpha: 0.1)),
                         ),
                       ),
                       child: Row(
@@ -95,7 +99,7 @@ class _EpgCardState extends State<EpgCard> {
                                 ? prog.formattedTime
                                 : 'Scheduled',
                             style: TextStyle(
-                              color: isLive ? Colors.white : AppColors.textPrimary,
+                              color: isLive ? Colors.white : context.textPrimary,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w600,
                             ),
@@ -126,7 +130,7 @@ class _EpgCardState extends State<EpgCard> {
                             ),
                             SizedBox(width: 6.w),
                             Text(
-                              'LIVE NOW',
+                              l10n?.nowPlaying ?? 'LIVE NOW',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11.sp,
@@ -141,7 +145,7 @@ class _EpgCardState extends State<EpgCard> {
                       Text(
                         'Finished',
                         style: TextStyle(
-                          color: AppColors.textSecondary.withAlpha(150),
+                          color: context.textSecondary.withValues(alpha: 0.6),
                           fontSize: 11.sp,
                         ),
                       ),
@@ -154,7 +158,7 @@ class _EpgCardState extends State<EpgCard> {
                 Text(
                   prog.title,
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.textPrimary,
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w700,
                   ),
@@ -181,7 +185,7 @@ class _EpgCardState extends State<EpgCard> {
                     maxLines: _isExpanded ? 100 : 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.textSecondary,
                       fontSize: 13.sp,
                       height: 1.4,
                     ),

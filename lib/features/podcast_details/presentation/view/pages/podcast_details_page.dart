@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_router.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
 import 'package:glitch_tv/features/podcast_details/data/api/podcast_details_api.dart';
@@ -79,17 +80,19 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return BlocProvider.value(
       value: _cubit,
       child: Scaffold(
-        backgroundColor: AppColors.scaffoldBackground,
+        backgroundColor: context.scaffoldBg,
         appBar: AppBar(
-          backgroundColor: AppColors.scaffoldBackground,
+          backgroundColor: context.scaffoldBg,
           elevation: 0,
           leading: IconButton(
             icon: Icon(
               Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               size: 20.sp,
             ),
             onPressed: () => context.pop(),
@@ -99,7 +102,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
             ),
@@ -111,7 +114,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                 _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                 color: _isFavorite
                     ? AppColors.primaryLight
-                    : AppColors.textSecondary,
+                    : context.textSecondary,
                 size: 22.sp,
               ),
               onPressed: () {
@@ -128,13 +131,13 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
               await _cubit.loadEpisodes(forceRefresh: true);
             },
             color: AppColors.primaryLight,
-            backgroundColor: AppColors.card,
+            backgroundColor: context.cardBg,
             child: BlocConsumer<PodcastDetailsCubit, PodcastDetailsState>(
               listener: (context, state) {
                 if (state is PodcastDetailsError) {
                   AppToast.showToast(
                     context: context,
-                    title: 'Error',
+                    title: l10n?.error ?? 'Error',
                     description: state.message,
                     type: ToastificationType.error,
                   );
@@ -168,10 +171,12 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                       // Search Input
                       Container(
                         decoration: BoxDecoration(
-                          color: AppColors.card,
+                          color: context.cardBg,
                           borderRadius: BorderRadius.circular(16.r),
                           border: Border.all(
-                            color: AppColors.textSecondary.withAlpha(30),
+                            color: context.isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
                           ),
                         ),
                         child: TextField(
@@ -182,25 +187,25 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                             _cubit.searchEpisodes(val);
                           },
                           style: TextStyle(
-                            color: AppColors.textPrimary,
+                            color: context.textPrimary,
                             fontSize: 14.sp,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Search episodes by title or topic...',
+                            hintText: l10n?.searchPodcasts ?? 'Search episodes by title or topic...',
                             hintStyle: TextStyle(
-                              color: AppColors.textSecondary.withAlpha(150),
+                              color: context.textSecondary.withValues(alpha: 0.6),
                               fontSize: 13.sp,
                             ),
-                            prefixIcon: Icon(
+                            prefixIcon: const Icon(
                               Icons.search_rounded,
-                              color: AppColors.primaryLight,
-                              size: 20.sp,
+                              color: AppColors.primary,
+                              size: 20,
                             ),
                             suffixIcon: _searchController.text.isNotEmpty
                                 ? IconButton(
                                     icon: Icon(
                                       Icons.clear_rounded,
-                                      color: AppColors.textSecondary,
+                                      color: context.textSecondary,
                                       size: 18.sp,
                                     ),
                                     onPressed: () {
@@ -226,16 +231,16 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                         children: [
                           Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.format_list_bulleted_rounded,
-                                color: AppColors.primaryLight,
-                                size: 20.sp,
+                                color: AppColors.primary,
+                                size: 20,
                               ),
                               SizedBox(width: 8.w),
                               Text(
-                                'Episodes',
+                                l10n?.episodes ?? 'Episodes',
                                 style: TextStyle(
-                                  color: AppColors.textPrimary,
+                                  color: context.textPrimary,
                                   fontSize: 18.sp,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -248,18 +253,19 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                                     vertical: 2.h,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.card,
+                                    color: context.cardBg,
                                     borderRadius: BorderRadius.circular(10.r),
                                     border: Border.all(
-                                      color: AppColors.textSecondary
-                                          .withAlpha(20),
+                                      color: context.isDark
+                                          ? Colors.white.withValues(alpha: 0.1)
+                                          : Colors.black.withValues(alpha: 0.1),
                                     ),
                                   ),
                                   child: Text(
                                     '${state.filteredEpisodes.length}',
-                                    style: TextStyle(
-                                      color: AppColors.primaryLight,
-                                      fontSize: 12.sp,
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -278,7 +284,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                                   vertical: 6.h,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.card,
+                                  color: context.cardBg,
                                   borderRadius: BorderRadius.circular(10.r),
                                   border: Border.all(
                                     color: AppColors.primary.withAlpha(40),
@@ -299,7 +305,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                                           ? 'Newest'
                                           : 'Oldest',
                                       style: TextStyle(
-                                        color: AppColors.textPrimary,
+                                        color: context.textPrimary,
                                         fontSize: 12.sp,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -360,11 +366,11 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
         (index) => Container(
           margin: EdgeInsets.only(bottom: 12.h),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: context.cardBg,
             borderRadius: BorderRadius.circular(16.r),
           ),
           child: Shimmer.fromColors(
-            baseColor: AppColors.card,
+            baseColor: context.cardBg,
             highlightColor: AppColors.primary.withAlpha(35),
             child: Padding(
               padding: EdgeInsets.all(14.r),
@@ -377,7 +383,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                         width: 40.w,
                         height: 22.h,
                         decoration: BoxDecoration(
-                          color: AppColors.card,
+                          color: context.cardBg,
                           borderRadius: BorderRadius.circular(8.r),
                         ),
                       ),
@@ -386,7 +392,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                         child: Container(
                           height: 16.h,
                           decoration: BoxDecoration(
-                            color: AppColors.card,
+                            color: context.cardBg,
                             borderRadius: BorderRadius.circular(6.r),
                           ),
                         ),
@@ -395,8 +401,8 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                       Container(
                         width: 32.w,
                         height: 32.h,
-                        decoration: const BoxDecoration(
-                          color: AppColors.card,
+                        decoration: BoxDecoration(
+                          color: context.cardBg,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -407,7 +413,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                     width: double.infinity,
                     height: 12.h,
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color: context.cardBg,
                       borderRadius: BorderRadius.circular(4.r),
                     ),
                   ),
@@ -416,7 +422,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                     width: 200.w,
                     height: 12.h,
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color: context.cardBg,
                       borderRadius: BorderRadius.circular(4.r),
                     ),
                   ),
@@ -430,6 +436,8 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
   }
 
   Widget _buildErrorView(String message) {
+    final l10n = context.l10n;
+
     return Container(
       padding: EdgeInsets.symmetric(vertical: 40.h, horizontal: 20.w),
       width: double.infinity,
@@ -443,9 +451,9 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
           ),
           SizedBox(height: 16.h),
           Text(
-            'Failed to load episodes',
+            l10n?.error ?? 'Failed to load episodes',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 16.sp,
               fontWeight: FontWeight.bold,
             ),
@@ -455,7 +463,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
             message,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.textSecondary,
               fontSize: 12.sp,
             ),
           ),
@@ -463,7 +471,7 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
           ElevatedButton.icon(
             onPressed: () => _cubit.loadEpisodes(forceRefresh: true),
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
+            label: Text(l10n?.retry ?? 'Retry'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -482,6 +490,8 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
   }
 
   Widget _buildEmptyView(bool isSearch) {
+    final l10n = context.l10n;
+
     return Container(
       padding: EdgeInsets.symmetric(vertical: 48.h, horizontal: 20.w),
       width: double.infinity,
@@ -493,28 +503,17 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                 ? Icons.search_off_rounded
                 : Icons.mic_external_off_rounded,
             size: 56.sp,
-            color: AppColors.textSecondary.withAlpha(100),
+            color: context.textSecondary.withValues(alpha: 0.4),
           ),
           SizedBox(height: 12.h),
           Text(
             isSearch
-                ? 'No matching episodes found'
-                : 'No episodes available',
+                ? (l10n?.noResultsFound ?? 'No matching episodes found')
+                : (l10n?.noEpisodesFound ?? 'No episodes available'),
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 16.sp,
               fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 4.h),
-          Text(
-            isSearch
-                ? 'Try searching with different keywords'
-                : 'Check back later for new episodes',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12.sp,
             ),
           ),
         ],

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_router.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -19,6 +20,7 @@ class FeaturedSwiper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
+    final l10n = context.l10n;
 
     return SizedBox(
       height: 170.h,
@@ -44,18 +46,30 @@ class FeaturedSwiper extends StatelessWidget {
               margin: EdgeInsets.symmetric(vertical: 4.h),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    AppColors.primaryDark,
-                    AppColors.card,
-                  ],
+                  colors: context.isDark
+                      ? [
+                          AppColors.primaryDark,
+                          AppColors.card,
+                        ]
+                      : [
+                          AppColors.primary,
+                          AppColors.primaryDark,
+                        ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20.r),
                 border: Border.all(
-                  color: AppColors.primaryLight.withAlpha(50),
+                  color: AppColors.primaryLight.withAlpha(80),
                   width: 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20.r),
@@ -67,7 +81,7 @@ class FeaturedSwiper extends StatelessWidget {
                       child: Icon(
                         Icons.live_tv_rounded,
                         size: 140.sp,
-                        color: Colors.white.withAlpha(10),
+                        color: Colors.white.withAlpha(12),
                       ),
                     ),
                     Padding(
@@ -75,7 +89,7 @@ class FeaturedSwiper extends StatelessWidget {
                       child: Row(
                         children: [
                           Container(
-                            width: 150.w,
+                            width: 130.w,
                             height: 100.h,
                             padding: EdgeInsets.all(10.r),
                             decoration: BoxDecoration(
@@ -87,9 +101,9 @@ class FeaturedSwiper extends StatelessWidget {
                                     imageUrl: item.logoUrl,
                                     fit: BoxFit.contain,
                                     placeholder: (context, url) => Shimmer.fromColors(
-                                      baseColor: AppColors.card,
-                                      highlightColor: AppColors.primary.withAlpha(40),
-                                      child: Container(color: AppColors.card),
+                                      baseColor: Colors.grey.shade300,
+                                      highlightColor: Colors.grey.shade100,
+                                      child: Container(color: Colors.white),
                                     ),
                                     errorWidget: (context, url, error) => Icon(
                                       Icons.tv,
@@ -112,7 +126,7 @@ class FeaturedSwiper extends StatelessWidget {
                                 Container(
                                   padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withAlpha(200),
+                                    color: Colors.redAccent.withAlpha(220),
                                     borderRadius: BorderRadius.circular(6.r),
                                   ),
                                   child: Row(
@@ -128,7 +142,7 @@ class FeaturedSwiper extends StatelessWidget {
                                       ),
                                       SizedBox(width: 4.w),
                                       Text(
-                                        'EGYPTIAN LIVE',
+                                        l10n?.live ?? 'LIVE',
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontSize: 9.sp,
@@ -145,7 +159,7 @@ class FeaturedSwiper extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: AppColors.textPrimary,
+                                    color: Colors.white,
                                     fontSize: 18.sp,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -154,11 +168,11 @@ class FeaturedSwiper extends StatelessWidget {
                                 Text(
                                   channel.categories.isNotEmpty
                                       ? channel.categories.join(' • ')
-                                      : 'Egyptian Channel',
+                                      : (l10n?.tv ?? 'TV'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: AppColors.textSecondary,
+                                    color: Colors.white70,
                                     fontSize: 12.sp,
                                   ),
                                 ),

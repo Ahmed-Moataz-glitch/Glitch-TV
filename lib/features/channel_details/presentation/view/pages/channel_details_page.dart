@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/channel_details/data/api/channel_details_api.dart';
 import 'package:glitch_tv/features/channel_details/data/repo/data_source/channel_details_data_source_impl.dart';
@@ -12,6 +13,7 @@ import 'package:glitch_tv/features/channel_details/domain/use_case/fetch_epg_gui
 import 'package:glitch_tv/features/channel_details/presentation/view/widgets/channel_info_header.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view/widgets/epg_card.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view_model/channel_details_cubit.dart';
+import 'package:glitch_tv/features/favorites/presentation/view_model/favorites_cubit.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -31,7 +33,6 @@ class ChannelDetailsPage extends StatefulWidget {
 
 class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
   late final ChannelDetailsCubit _cubit;
-  bool _isFavorite = false;
 
   @override
   void initState() {
@@ -59,18 +60,22 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final channel = widget.channelItem.channel;
+    final isFavorite = context
+        .watch<FavoritesCubit>()
+        .isChannelFavorite(widget.channelItem.channel.id);
+    final l10n = context.l10n;
 
     return BlocProvider.value(
       value: _cubit,
       child: Scaffold(
-        backgroundColor: AppColors.scaffoldBackground,
+        backgroundColor: context.scaffoldBg,
         appBar: AppBar(
-          backgroundColor: AppColors.scaffoldBackground,
+          backgroundColor: context.scaffoldBg,
           elevation: 0,
           leading: IconButton(
             icon: Icon(
               Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               size: 20.sp,
             ),
             onPressed: () => context.pop(),
@@ -78,7 +83,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
           title: Text(
             channel.name.isNotEmpty ? channel.name : channel.id,
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
             ),
@@ -87,16 +92,33 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
           actions: [
             IconButton(
               icon: Icon(
-                _isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: _isFavorite
+                isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: isFavorite
                     ? AppColors.primaryLight
-                    : AppColors.textSecondary,
+                    : context.textSecondary,
                 size: 22.sp,
               ),
-              onPressed: () {
-                setState(() {
-                  _isFavorite = !_isFavorite;
-                });
+              onPressed: () async {
+                final isNowFav = await context
+                    .read<FavoritesCubit>()
+                    .toggleFavorite(widget.channelItem);
+                if (context.mounted) {
+                  final channelDisplayName = channel.name.isNotEmpty
+                      ? channel.name
+                      : channel.id;
+                  final title = isNowFav
+                      ? (l10n?.addedToFavorites ?? 'Added to Favorites')
+                      : (l10n?.removedFromFavorites ??
+                          'Removed from Favorites');
+                  AppToast.showToast(
+                    context: context,
+                    title: title,
+                    description: channelDisplayName,
+                    type: isNowFav
+                        ? ToastificationType.success
+                        : ToastificationType.info,
+                  );
+                }
               },
             ),
           ],
@@ -107,13 +129,13 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
               await _cubit.loadEpg(forceRefresh: true);
             },
             color: AppColors.primaryLight,
-            backgroundColor: AppColors.card,
+            backgroundColor: context.cardBg,
             child: BlocConsumer<ChannelDetailsCubit, ChannelDetailsState>(
               listener: (context, state) {
                 if (state is ChannelDetailsError) {
                   AppToast.showToast(
                     context: context,
-                    title: 'Error',
+                    title: l10n?.error ?? 'Error',
                     description: state.message,
                     type: ToastificationType.error,
                   );
@@ -150,13 +172,9 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                               ),
                               SizedBox(width: 8.w),
                               Text(
-                                state is ChannelDetailsSuccess
-                                    ? (state.selectedDayIndex == 0
-                                        ? "Today's Programs"
-                                        : "Tomorrow's Programs")
-                                    : "EPG Guide",
+                                l10n?.epgGuide ?? "TV Schedule & Guide",
                                 style: TextStyle(
-                                  color: AppColors.textPrimary,
+                                  color: context.textPrimary,
                                   fontSize: 18.sp,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -170,11 +188,11 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                                 vertical: 4.h,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.card,
+                                color: context.cardBg,
                                 borderRadius: BorderRadius.circular(12.r),
                               ),
                               child: Text(
-                                '${state.currentProgrammes.length} shows',
+                                '${state.currentProgrammes.length}',
                                 style: TextStyle(
                                   color: AppColors.primaryLight,
                                   fontSize: 12.sp,
@@ -239,15 +257,16 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
   Widget _buildDateSelector(ChannelDetailsSuccess state) {
     final now = DateTime.now();
     final tomorrow = now.add(const Duration(days: 1));
+    final l10n = context.l10n;
 
     final days = [
       {
-        'label': 'Today',
+        'label': l10n?.todaySchedule ?? 'Today',
         'date': _formatDateShort(now),
         'count': state.todayProgrammes.length,
       },
       {
-        'label': 'Tomorrow',
+        'label': l10n?.upcoming ?? 'Tomorrow',
         'date': _formatDateShort(tomorrow),
         'count': state.tomorrowProgrammes.length,
       },
@@ -257,10 +276,12 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
       margin: EdgeInsets.only(bottom: 16.h),
       padding: EdgeInsets.all(4.r),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: AppColors.textSecondary.withAlpha(20),
+          color: context.isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
         ),
       ),
       child: Row(
@@ -299,7 +320,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                           style: TextStyle(
                             color: isSelected
                                 ? Colors.white
-                                : AppColors.textPrimary,
+                                : context.textPrimary,
                             fontSize: 14.sp,
                             fontWeight: FontWeight.bold,
                           ),
@@ -335,7 +356,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                       style: TextStyle(
                         color: isSelected
                             ? Colors.white.withAlpha(200)
-                            : AppColors.textSecondary,
+                            : context.textSecondary,
                         fontSize: 11.sp,
                         fontWeight: FontWeight.w500,
                       ),
@@ -357,13 +378,13 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
         (index) => Padding(
           padding: EdgeInsets.only(bottom: 12.h),
           child: Shimmer.fromColors(
-            baseColor: AppColors.card,
+            baseColor: context.cardBg,
             highlightColor: AppColors.primary.withAlpha(40),
             child: Container(
               width: double.infinity,
               height: 90.h,
               decoration: BoxDecoration(
-                color: AppColors.card,
+                color: context.cardBg,
                 borderRadius: BorderRadius.circular(16.r),
               ),
             ),
@@ -374,11 +395,13 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
   }
 
   Widget _buildErrorView(String message) {
+    final l10n = context.l10n;
+
     return Container(
       padding: EdgeInsets.all(24.r),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(20.r),
       ),
       child: Column(
@@ -390,9 +413,9 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
           ),
           SizedBox(height: 12.h),
           Text(
-            'Failed to load EPG guide',
+            l10n?.error ?? 'Failed to load TV guide',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 16.sp,
               fontWeight: FontWeight.bold,
             ),
@@ -402,7 +425,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
             message,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.textSecondary,
               fontSize: 12.sp,
             ),
           ),
@@ -410,7 +433,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
           ElevatedButton.icon(
             onPressed: () => _cubit.loadEpg(),
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
+            label: Text(l10n?.retry ?? 'Retry'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -425,12 +448,13 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
   }
 
   Widget _buildEmptyView(bool isToday) {
-    final dayText = isToday ? 'today' : 'tomorrow';
+    final l10n = context.l10n;
+
     return Container(
       padding: EdgeInsets.all(32.r),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(20.r),
       ),
       child: Column(
@@ -438,24 +462,16 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
           Icon(
             Icons.event_busy_rounded,
             size: 48.sp,
-            color: AppColors.textSecondary.withAlpha(120),
+            color: context.textSecondary.withValues(alpha: 0.5),
           ),
           SizedBox(height: 12.h),
           Text(
-            'No guide available for $dayText',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16.sp,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 4.h),
-          Text(
-            'No EPG schedule data was found for this channel $dayText.',
+            l10n?.noEpgAvailable ?? 'No guide available for this channel',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12.sp,
+              color: context.textPrimary,
+              fontSize: 16.sp,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],

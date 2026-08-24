@@ -2,6 +2,7 @@ import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.da
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/l10n/app_localizations.dart';
 import 'package:glitch_tv/features/favorites/presentation/view/pages/favorites_page.dart';
 import 'package:glitch_tv/features/home/presentation/view/pages/home_page.dart';
 import 'package:glitch_tv/features/settings/presentation/view/pages/settings_page.dart';
@@ -44,11 +45,16 @@ class _AppSectionState extends State<AppSection> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final labels = [
-      'Home',
-      'Favorites',
-      'Settings',
+      l10n?.home ?? 'Home',
+      l10n?.favorites ?? 'Favorites',
+      l10n?.settings ?? 'Settings',
     ];
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inactiveColor =
+        isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
 
     return Scaffold(
       body: IndexedStack(
@@ -64,7 +70,7 @@ class _AppSectionState extends State<AppSection> {
           gapLocation: GapLocation.none,
           notchSmoothness: NotchSmoothness.smoothEdge,
           elevation: 0,
-          backgroundColor: AppColors.card,
+          backgroundColor: Theme.of(context).cardColor,
           splashColor: AppColors.primary.withValues(alpha: 0.15),
           splashSpeedInMilliseconds: 300,
           onTap: (index) {
@@ -74,7 +80,7 @@ class _AppSectionState extends State<AppSection> {
           },
           tabBuilder: (index, isActive) {
             final activeColor = AppColors.primary;
-            final color = isActive ? activeColor : AppColors.textSecondary;
+            final color = isActive ? activeColor : inactiveColor;
       
             return Center(
               child: FittedBox(

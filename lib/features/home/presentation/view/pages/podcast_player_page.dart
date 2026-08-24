@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
 import 'package:glitch_tv/features/podcast_details/data/services/podcast_download_service.dart';
@@ -263,7 +264,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
           if (mounted) {
             AppToast.showToast(
               context: context,
-              title: 'Podcast Stream Error',
+              title: context.l10n?.error ?? 'Podcast Stream Error',
               description: 'Could not load podcast stream.',
               type: ToastificationType.error,
             );
@@ -382,7 +383,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
       if (mounted) {
         AppToast.showToast(
           context: context,
-          title: 'Playback Error',
+          title: context.l10n?.error ?? 'Playback Error',
           description: 'Failed to play selected episode.',
           type: ToastificationType.error,
         );
@@ -399,6 +400,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
   Future<void> _handleDownloadAction() async {
     final ep = _currentEpisode;
     if (ep == null) return;
+    final l10n = context.l10n;
 
     if (_isDownloading) {
       AppToast.showToast(
@@ -415,7 +417,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
       // Show bottom sheet to manage / delete download
       showModalBottomSheet(
         context: context,
-        backgroundColor: AppColors.card,
+        backgroundColor: context.cardBg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
         ),
@@ -430,7 +432,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     width: 40.w,
                     height: 4.h,
                     decoration: BoxDecoration(
-                      color: AppColors.textSecondary.withAlpha(80),
+                      color: context.textSecondary.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(2.r),
                     ),
                   ),
@@ -457,7 +459,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                             Text(
                               'Downloaded to Podcasts Folder',
                               style: TextStyle(
-                                color: AppColors.textPrimary,
+                                color: context.textPrimary,
                                 fontSize: 16.sp,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -468,7 +470,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                                   ? 'File Size: $_downloadedFileSize • Saved in Podcasts'
                                   : 'Stored in device Podcasts folder',
                               style: TextStyle(
-                                color: AppColors.textSecondary,
+                                color: context.textSecondary,
                                 fontSize: 12.sp,
                               ),
                             ),
@@ -487,18 +489,18 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                       Icons.delete_outline_rounded,
                       color: Colors.redAccent,
                     ),
-                    title: Text(
+                    title: const Text(
                       'Delete Download',
                       style: TextStyle(
                         color: Colors.redAccent,
                         fontWeight: FontWeight.bold,
-                        fontSize: 14.sp,
+                        fontSize: 14,
                       ),
                     ),
                     subtitle: Text(
                       'Remove file from device storage',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: context.textSecondary,
                         fontSize: 11.sp,
                       ),
                     ),
@@ -589,7 +591,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
         });
         AppToast.showToast(
           context: context,
-          title: 'Download Failed',
+          title: l10n?.error ?? 'Download Failed',
           description: 'Could not download episode: $e',
           type: ToastificationType.error,
         );
@@ -669,27 +671,32 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
   }
 
   void _showSpeedDialog() {
+    final l10n = context.l10n;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: AppColors.card,
+          backgroundColor: context.cardBg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20.r),
-            side: BorderSide(color: AppColors.textSecondary.withAlpha(30)),
+            side: BorderSide(
+              color: context.isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.black.withValues(alpha: 0.1),
+            ),
           ),
           title: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.speed_rounded,
-                color: AppColors.primaryLight,
-                size: 22.sp,
+                color: AppColors.primary,
+                size: 22,
               ),
               SizedBox(width: 8.w),
               Text(
-                'Playback Speed',
+                l10n?.speed ?? 'Playback Speed',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.textPrimary,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.bold,
                 ),
@@ -709,8 +716,8 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   '${speed}x${speed == 1.0 ? ' (Normal)' : ''}',
                   style: TextStyle(
                     color: isSelected
-                        ? AppColors.primaryLight
-                        : AppColors.textPrimary,
+                        ? AppColors.primary
+                        : context.textPrimary,
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -718,10 +725,10 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   ),
                 ),
                 trailing: isSelected
-                    ? Icon(
+                    ? const Icon(
                         Icons.check_circle_rounded,
-                        color: AppColors.primaryLight,
-                        size: 20.sp,
+                        color: AppColors.primary,
+                        size: 20,
                       )
                     : null,
                 onTap: () {
@@ -744,10 +751,14 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
           builder: (context, setDialogState) {
             final currentVol = _isMuted ? 0.0 : _volume;
             return AlertDialog(
-              backgroundColor: AppColors.card,
+              backgroundColor: context.cardBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20.r),
-                side: BorderSide(color: AppColors.textSecondary.withAlpha(30)),
+                side: BorderSide(
+                  color: context.isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.black.withValues(alpha: 0.1),
+                ),
               ),
               title: Row(
                 children: [
@@ -762,7 +773,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   Text(
                     'Volume Level',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                       fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
                     ),
@@ -784,7 +795,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   SliderTheme(
                     data: SliderThemeData(
                       activeTrackColor: AppColors.primary,
-                      inactiveTrackColor: AppColors.scaffoldBackground,
+                      inactiveTrackColor: context.scaffoldBg,
                       thumbColor: AppColors.primaryLight,
                       overlayColor: AppColors.primary.withAlpha(30),
                       trackHeight: 5.h,
@@ -814,9 +825,9 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                         label: Text(label),
                         selected: isSel,
                         selectedColor: AppColors.primary,
-                        backgroundColor: AppColors.scaffoldBackground,
+                        backgroundColor: context.scaffoldBg,
                         labelStyle: TextStyle(
-                          color: isSel ? Colors.white : AppColors.textPrimary,
+                          color: isSel ? Colors.white : context.textPrimary,
                           fontSize: 12.sp,
                           fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
                         ),
@@ -834,11 +845,11 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text(
+                  child: const Text(
                     'Done',
                     style: TextStyle(
-                      color: AppColors.primaryLight,
-                      fontSize: 14.sp,
+                      color: AppColors.primary,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -859,41 +870,35 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     await _audioPlayer.setVolume(val);
   }
 
-  String _formatDuration(Duration d) {
-    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    if (d.inHours > 0) {
-      final hours = d.inHours.toString().padLeft(2, '0');
-      return '$hours:$minutes:$seconds';
-    }
-    return '$minutes:$seconds';
-  }
-
   PodcastEpisode? get _currentEpisode =>
-      _episodesQueue.isNotEmpty &&
-          _currentEpisodeIndex >= 0 &&
-          _currentEpisodeIndex < _episodesQueue.length
-      ? _episodesQueue[_currentEpisodeIndex]
-      : null;
+      (_currentEpisodeIndex >= 0 &&
+              _currentEpisodeIndex < _episodesQueue.length)
+          ? _episodesQueue[_currentEpisodeIndex]
+          : null;
+
+  String _formatDuration(Duration d) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = d.inHours;
+    final minutes = d.inMinutes.remainder(60);
+    final seconds = d.inSeconds.remainder(60);
+    if (hours > 0) {
+      return '$hours:${twoDigits(minutes)}:${twoDigits(seconds)}';
+    }
+    return '${twoDigits(minutes)}:${twoDigits(seconds)}';
+  }
 
   Future<void> _sharePodcast() async {
     final ep = _currentEpisode;
     final epTitle = ep?.title ?? _currentPodcast.name;
-    final host = _currentPodcast.host.isNotEmpty ? ' by ${_currentPodcast.host}' : '';
-    final audioUrl = ep?.audioUrl.isNotEmpty == true
-        ? ep!.audioUrl
-        : (_currentPodcast.feedUrl.isNotEmpty ? _currentPodcast.feedUrl : '');
-    final duration = ep?.duration.isNotEmpty == true ? '⏱️ Duration: ${ep!.duration}\n' : '';
-    final category = _currentPodcast.category.isNotEmpty ? '🏷️ Category: ${_currentPodcast.category}\n' : '';
-    final linkText = audioUrl.isNotEmpty ? '🔗 Listen: $audioUrl\n' : '';
+    final epAudio = ep?.audioUrl ?? _currentPodcast.feedUrl;
 
     final shareText =
-        '🎙️ Listen to "$epTitle"$host on Glitch TV!\n\n🎧 Podcast: ${_currentPodcast.name}\n$category$duration$linkText\nEnjoy podcasts, radio & TV on Glitch TV.';
+        '🎙️ Listen to "$epTitle" from "${_currentPodcast.name}" on Glitch TV!\n🔗 Stream: $epAudio\nEnjoy top Egyptian podcasts & TV on Glitch TV.';
 
     try {
       await Share.share(
         shareText,
-        subject: 'Listen to "$epTitle" on Glitch TV',
+        subject: 'Listen to $epTitle on Glitch TV',
       );
     } catch (e) {
       debugPrint('Error sharing podcast: $e');
@@ -904,24 +909,25 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final epTitle = _currentEpisode?.title ?? _currentPodcast.name;
+    final l10n = context.l10n;
 
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: AppColors.textPrimary,
+            color: context.textPrimary,
             size: 20.sp,
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Podcast Player',
+          l10n?.podcastDetails ?? 'Podcast Player',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.textPrimary,
             fontSize: 18.sp,
             fontWeight: FontWeight.bold,
           ),
@@ -966,7 +972,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                         : Icons.file_download_outlined,
                     color: _isDownloaded
                         ? AppColors.primaryLight
-                        : AppColors.textPrimary,
+                        : context.textPrimary,
                     size: 24.sp,
                   ),
             onPressed: _handleDownloadAction,
@@ -977,7 +983,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
               color: AppColors.primaryLight,
               size: 22.sp,
             ),
-            tooltip: 'Share Podcast',
+            tooltip: l10n?.share ?? 'Share Podcast',
             onPressed: _sharePodcast,
           ),
         ],
@@ -997,7 +1003,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                       vertical: 6.h,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(30),
+                      color: AppColors.primary.withAlpha(context.isDark ? 30 : 20),
                       borderRadius: BorderRadius.circular(20.r),
                       border: Border.all(
                         color: AppColors.primaryLight.withAlpha(50),
@@ -1023,16 +1029,18 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                         vertical: 6.h,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.card,
+                        color: context.cardBg,
                         borderRadius: BorderRadius.circular(20.r),
                         border: Border.all(
-                          color: AppColors.textSecondary.withAlpha(30),
+                          color: context.isDark
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : Colors.black.withValues(alpha: 0.1),
                         ),
                       ),
                       child: Text(
                         'EP ${_currentEpisodeIndex + 1}/${_episodesQueue.length}',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.textPrimary,
                           fontSize: 11.sp,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1087,7 +1095,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   height: 210.h,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24.r),
-                    color: AppColors.card,
+                    color: context.cardBg,
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.primary.withAlpha(60),
@@ -1127,7 +1135,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: context.textPrimary,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.bold,
                 ),
@@ -1141,7 +1149,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: context.textSecondary,
                   fontSize: 13.sp,
                 ),
               ),
@@ -1154,7 +1162,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   SliderTheme(
                     data: SliderThemeData(
                       activeTrackColor: AppColors.primary,
-                      inactiveTrackColor: AppColors.card,
+                      inactiveTrackColor: context.cardBg,
                       thumbColor: AppColors.primaryLight,
                       overlayColor: AppColors.primary.withAlpha(40),
                       trackHeight: 4.h,
@@ -1185,14 +1193,14 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                       Text(
                         _formatDuration(_position),
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: context.textSecondary,
                           fontSize: 12.sp,
                         ),
                       ),
                       Text(
                         _formatDuration(_duration),
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: context.textSecondary,
                           fontSize: 12.sp,
                         ),
                       ),
@@ -1216,17 +1224,19 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                         vertical: 6.h,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.card,
+                        color: context.cardBg,
                         borderRadius: BorderRadius.circular(12.r),
                         border: Border.all(
-                          color: AppColors.textSecondary.withAlpha(30),
+                          color: context.isDark
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : Colors.black.withValues(alpha: 0.1),
                         ),
                       ),
                       child: Text(
                         '${_playbackSpeed}x',
-                        style: TextStyle(
-                          color: AppColors.primaryLight,
-                          fontSize: 12.5.sp,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1238,7 +1248,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     iconSize: 32.sp,
                     icon: Icon(
                       Icons.skip_previous_rounded,
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                     ),
                     onPressed: _playPreviousEpisode,
                   ),
@@ -1248,7 +1258,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     iconSize: 32.sp,
                     icon: Icon(
                       Icons.replay_10_rounded,
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                     ),
                     onPressed: () => _seekRelative(-10),
                   ),
@@ -1259,7 +1269,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     child: Container(
                       width: 68.w,
                       height: 68.h,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppColors.primary,
                       ),
@@ -1289,7 +1299,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     iconSize: 32.sp,
                     icon: Icon(
                       Icons.forward_10_rounded,
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                     ),
                     onPressed: () => _seekRelative(10),
                   ),
@@ -1299,7 +1309,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                     iconSize: 32.sp,
                     icon: Icon(
                       Icons.skip_next_rounded,
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                     ),
                     onPressed: _playNextEpisode,
                   ),
