@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/features/podcast_details/domain/entities/podcast_episode_entity.dart';
 
 class PodcastEpisodeCard extends StatefulWidget {
@@ -32,10 +33,12 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
     return Container(
       margin: EdgeInsets.only(bottom: 12.h),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: AppColors.textSecondary.withAlpha(20),
+          color: context.isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
         ),
       ),
       child: Material(
@@ -59,7 +62,7 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                         vertical: 4.h,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(30),
+                        color: AppColors.primary.withAlpha(context.isDark ? 30 : 20),
                         borderRadius: BorderRadius.circular(8.r),
                         border: Border.all(
                           color: AppColors.primaryLight.withAlpha(50),
@@ -67,9 +70,9 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                       ),
                       child: Text(
                         epNum,
-                        style: TextStyle(
-                          color: AppColors.primaryLight,
-                          fontSize: 11.sp,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -80,11 +83,10 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                     Expanded(
                       child: Text(
                         ep.title,
-                        textAlign: TextAlign.right,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.textPrimary,
                           fontSize: 15.sp,
                           fontWeight: FontWeight.w800,
                           height: 1.25,
@@ -127,11 +129,10 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                     },
                     child: Text(
                       ep.description,
-                      textAlign: TextAlign.right,
                       maxLines: _isExpanded ? 10 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppColors.textSecondary.withAlpha(200),
+                        color: context.textSecondary,
                         fontWeight: FontWeight.w500,
                         fontSize: 12.sp,
                         height: 1.35,
@@ -148,14 +149,14 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                     if (ep.pubDate.isNotEmpty) ...[
                       Icon(
                         Icons.calendar_today_rounded,
-                        color: AppColors.textSecondary.withAlpha(150),
+                        color: context.textSecondary.withValues(alpha: 0.6),
                         size: 12.sp,
                       ),
                       SizedBox(width: 4.w),
                       Text(
                         ep.pubDate,
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: context.textSecondary,
                           fontSize: 11.sp,
                         ),
                       ),
@@ -166,7 +167,7 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                         width: 3.w,
                         height: 3.h,
                         decoration: BoxDecoration(
-                          color: AppColors.textSecondary.withAlpha(120),
+                          color: context.textSecondary.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -181,9 +182,9 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                       SizedBox(width: 4.w),
                       Text(
                         ep.duration,
-                        style: TextStyle(
-                          color: AppColors.primaryLight,
-                          fontSize: 11.sp,
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_router.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
@@ -21,20 +22,23 @@ class ChannelInfoHeader extends StatelessWidget {
     final logoUrl = item.logoUrl;
     final category =
         channel.categories.isNotEmpty ? channel.categories.first : 'TV';
+    final l10n = context.l10n;
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(20.r),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(24.r),
         border: Border.all(
-          color: AppColors.textSecondary.withAlpha(25),
+          color: context.isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.scaffoldBackground.withAlpha(50),
+            color: Colors.black.withValues(alpha: context.isDark ? 0.2 : 0.05),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -48,7 +52,9 @@ class ChannelInfoHeader extends StatelessWidget {
             height: 100.h,
             padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
-              color: AppColors.textPrimary.withAlpha(210),
+              color: context.isDark
+                  ? AppColors.textPrimary.withAlpha(210)
+                  : const Color(0xFFEAE8F2),
               shape: BoxShape.rectangle,
               borderRadius: BorderRadius.circular(16.r),
               border: Border.all(
@@ -70,11 +76,11 @@ class ChannelInfoHeader extends StatelessWidget {
                       imageUrl: logoUrl,
                       fit: BoxFit.contain,
                       placeholder: (context, url) => Shimmer.fromColors(
-                        baseColor: AppColors.card,
+                        baseColor: context.cardBg,
                         highlightColor: AppColors.primary.withAlpha(40),
                         child: Container(
-                          decoration: const BoxDecoration(
-                            color: AppColors.card,
+                          decoration: BoxDecoration(
+                            color: context.cardBg,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -99,7 +105,7 @@ class ChannelInfoHeader extends StatelessWidget {
             channel.name.isNotEmpty ? channel.name : channel.id,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 22.sp,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
@@ -116,14 +122,14 @@ class ChannelInfoHeader extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryDark.withAlpha(120),
+                  color: AppColors.primaryDark.withAlpha(context.isDark ? 120 : 40),
                   borderRadius: BorderRadius.circular(12.r),
                 ),
                 child: Text(
                   category,
-                  style: TextStyle(
-                    color: AppColors.primaryLight,
-                    fontSize: 13.sp,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -137,9 +143,9 @@ class ChannelInfoHeader extends StatelessWidget {
                   ),
                   child: Text(
                     channel.country.toUpperCase(),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 13.sp,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -148,16 +154,18 @@ class ChannelInfoHeader extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
                   decoration: BoxDecoration(
-                    color: AppColors.card,
+                    color: context.cardBg,
                     borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
-                      color: AppColors.textSecondary.withAlpha(50),
+                      color: context.isDark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.black.withValues(alpha: 0.1),
                     ),
                   ),
                   child: Text(
                     channel.network,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.textSecondary,
                       fontSize: 13.sp,
                     ),
                   ),
@@ -173,7 +181,7 @@ class ChannelInfoHeader extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16.r),
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   colors: [
                     AppColors.primary,
                     AppColors.primaryLight,
@@ -206,7 +214,7 @@ class ChannelInfoHeader extends StatelessWidget {
                   size: 24.sp,
                 ),
                 label: Text(
-                  'Watch Now',
+                  l10n?.watchStream ?? 'Watch Stream',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16.sp,
@@ -220,7 +228,9 @@ class ChannelInfoHeader extends StatelessWidget {
 
           if (channel.owners.isNotEmpty || channel.website.isNotEmpty) ...[
             SizedBox(height: 14.h),
-            Divider(color: AppColors.textSecondary.withAlpha(30)),
+            Divider(
+              color: context.dividerColor,
+            ),
             SizedBox(height: 10.h),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -231,7 +241,7 @@ class ChannelInfoHeader extends StatelessWidget {
                       Text(
                         'Owner',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: context.textSecondary,
                           fontSize: 11.sp,
                         ),
                       ),
@@ -239,7 +249,7 @@ class ChannelInfoHeader extends StatelessWidget {
                       Text(
                         channel.owners.first,
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.textPrimary,
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w600,
                         ),
@@ -252,7 +262,7 @@ class ChannelInfoHeader extends StatelessWidget {
                       Text(
                         'Launched',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: context.textSecondary,
                           fontSize: 11.sp,
                         ),
                       ),
@@ -260,7 +270,7 @@ class ChannelInfoHeader extends StatelessWidget {
                       Text(
                         channel.launched,
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.textPrimary,
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w600,
                         ),

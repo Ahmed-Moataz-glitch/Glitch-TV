@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_radio_player/flutter_radio_player.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -119,9 +120,9 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _isPlayingSub?.cancel();
     _nowPlayingSub?.cancel();
-    _pulseController.dispose();
     _player.pause();
     super.dispose();
   }
@@ -129,74 +130,53 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
   RadioStationEntity get _currentStation => _playlist[_currentIndex];
 
   Future<void> _playOrPause() async {
-    try {
-      await _player.playOrPause();
-    } catch (_) {}
+    if (_isPlaying) {
+      await _player.pause();
+    } else {
+      await _player.play();
+    }
   }
 
   Future<void> _playNext() async {
-    if (_playlist.length <= 1) return;
-    final nextIndex = (_currentIndex + 1) % _playlist.length;
-    setState(() {
-      _currentIndex = nextIndex;
-      _isLoading = true;
-      _nowPlayingMetadata = '';
-    });
-
-    try {
-      await _player.jumpToSourceAtIndex(nextIndex);
+    if (_currentIndex < _playlist.length - 1) {
+      setState(() {
+        _currentIndex++;
+        _isLoading = true;
+        _nowPlayingMetadata = '';
+      });
+      await _player.jumpToSourceAtIndex(_currentIndex);
       await _player.play();
-    } catch (e) {
-      debugPrint('Play next error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
   Future<void> _playPrevious() async {
-    if (_playlist.length <= 1) return;
-    final prevIndex = (_currentIndex - 1 + _playlist.length) % _playlist.length;
-    setState(() {
-      _currentIndex = prevIndex;
-      _isLoading = true;
-      _nowPlayingMetadata = '';
-    });
-
-    try {
-      await _player.jumpToSourceAtIndex(prevIndex);
+    if (_currentIndex > 0) {
+      setState(() {
+        _currentIndex--;
+        _isLoading = true;
+        _nowPlayingMetadata = '';
+      });
+      await _player.jumpToSourceAtIndex(_currentIndex);
       await _player.play();
-    } catch (e) {
-      debugPrint('Play previous error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
   void _showVolumeDialog() {
+    double currentVol = _volume;
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (BuildContext dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final currentVol = _isMuted ? 0.0 : _volume;
             return AlertDialog(
-              backgroundColor: AppColors.card,
+              backgroundColor: context.cardBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20.r),
-                side: BorderSide(color: AppColors.textSecondary.withAlpha(30)),
               ),
               title: Row(
                 children: [
                   Icon(
-                    currentVol == 0.0
+                    currentVol == 0
                         ? Icons.volume_off_rounded
                         : Icons.volume_up_rounded,
                     color: AppColors.primaryLight,
@@ -206,7 +186,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                   Text(
                     'Volume Level',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                       fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
                     ),
@@ -228,7 +208,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                   SliderTheme(
                     data: SliderThemeData(
                       activeTrackColor: AppColors.primary,
-                      inactiveTrackColor: AppColors.scaffoldBackground,
+                      inactiveTrackColor: context.scaffoldBg,
                       thumbColor: AppColors.primaryLight,
                       overlayColor: AppColors.primary.withAlpha(30),
                       trackHeight: 5.h,
@@ -258,9 +238,9 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                         label: Text(label),
                         selected: isSel,
                         selectedColor: AppColors.primary,
-                        backgroundColor: AppColors.scaffoldBackground,
+                        backgroundColor: context.scaffoldBg,
                         labelStyle: TextStyle(
-                          color: isSel ? Colors.white : AppColors.textPrimary,
+                          color: isSel ? Colors.white : context.textPrimary,
                           fontSize: 12.sp,
                           fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
                         ),
@@ -277,7 +257,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(dialogContext),
                   child: Text(
                     'Done',
                     style: TextStyle(
@@ -330,23 +310,25 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final l10n = context.l10n;
+
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
+      backgroundColor: context.scaffoldBg,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: AppColors.textPrimary,
+            color: context.textPrimary,
             size: 20.sp,
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Radio Player',
+          l10n?.radioPlayer ?? 'Radio Player',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.textPrimary,
             fontSize: 18.sp,
             fontWeight: FontWeight.bold,
           ),
@@ -359,7 +341,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
               color: AppColors.primaryLight,
               size: 22.sp,
             ),
-            tooltip: 'Share Station',
+            tooltip: l10n?.share ?? 'Share Station',
             onPressed: _shareStation,
           ),
         ],
@@ -375,12 +357,14 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
               decoration: BoxDecoration(
                 color: _isPlaying
                     ? Colors.redAccent.withAlpha(30)
-                    : AppColors.card,
+                    : context.cardBg,
                 borderRadius: BorderRadius.circular(20.r),
                 border: Border.all(
                   color: _isPlaying
                       ? Colors.redAccent
-                      : AppColors.textSecondary.withAlpha(30),
+                      : (context.isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.black.withValues(alpha: 0.06)),
                 ),
               ),
               child: Row(
@@ -392,19 +376,21 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                     decoration: BoxDecoration(
                       color: _isPlaying
                           ? Colors.redAccent
-                          : AppColors.textSecondary,
+                          : context.textSecondary,
                       shape: BoxShape.circle,
                     ),
                   ),
                   SizedBox(width: 8.w),
                   Text(
                     _isLoading
-                        ? 'CONNECTING...'
-                        : (_isPlaying ? 'LIVE STREAM' : 'PAUSED'),
+                        ? (l10n?.buffering ?? 'CONNECTING...')
+                        : (_isPlaying
+                            ? (l10n?.playingLive ?? 'LIVE STREAM')
+                            : (l10n?.paused ?? 'PAUSED')),
                     style: TextStyle(
                       color: _isPlaying
                           ? Colors.redAccent
-                          : AppColors.textPrimary,
+                          : context.textPrimary,
                       fontSize: 12.sp,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
@@ -431,7 +417,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                       height: 200.h,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.card,
+                        color: context.cardBg,
                         boxShadow: [
                           BoxShadow(
                             color: AppColors.primary.withAlpha(
@@ -478,7 +464,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.textPrimary,
                       fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                     ),
@@ -488,13 +474,13 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                     _nowPlayingMetadata.isNotEmpty
                         ? _nowPlayingMetadata
                         : (_currentStation.tags.isNotEmpty
-                              ? _currentStation.tags
-                              : 'Egyptian Live Radio Stream'),
+                            ? _currentStation.tags
+                            : 'Egyptian Live Radio Stream'),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: context.textSecondary,
                       fontSize: 13.sp,
                     ),
                   ),
@@ -514,7 +500,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
             ),
             const Spacer(),
 
-            // Playback Controls Row: Volume Dialog Button, Skip Prev, Play/Pause, Skip Next
+            // Playback Controls Row
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24.w),
               child: Row(
@@ -525,8 +511,8 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                     icon: Icon(
                       Icons.skip_previous_rounded,
                       color: _playlist.length > 1
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary.withAlpha(80),
+                          ? context.textPrimary
+                          : context.textSecondary.withValues(alpha: 0.3),
                     ),
                     onPressed: _playlist.length > 1 ? _playPrevious : null,
                   ),
@@ -535,7 +521,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                     child: Container(
                       width: 72.r,
                       height: 72.r,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppColors.primary,
                       ),
@@ -564,8 +550,8 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                     icon: Icon(
                       Icons.skip_next_rounded,
                       color: _playlist.length > 1
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary.withAlpha(80),
+                          ? context.textPrimary
+                          : context.textSecondary.withValues(alpha: 0.3),
                     ),
                     onPressed: _playlist.length > 1 ? _playNext : null,
                   ),
