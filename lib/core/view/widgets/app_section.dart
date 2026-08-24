@@ -103,7 +103,7 @@ class _AppSectionState extends State<AppSection> {
                             : [],
                       ),
                     ),
-                    SizedBox(height: 2.h),
+                    SizedBox(height: 4.h),
       
                     // Icon with scale micro-animation
                     AnimatedScale(

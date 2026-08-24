@@ -60,7 +60,7 @@ class _ChannelCardState extends State<ChannelCard> {
                     Container(
                       width: size.width,
                       decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withAlpha(200),
+                        color: AppColors.textSecondary.withAlpha(100),
                         borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
                       ),
                       padding: EdgeInsets.all(12.r),
