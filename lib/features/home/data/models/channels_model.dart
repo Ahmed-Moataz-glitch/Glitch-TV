@@ -11,6 +11,8 @@ List<String> channels = [
   'MonsterJam.us',
   'RedBullTV.at',
   'RallyTV.us',
+  'Aflam.sa',
+  'MBCDrama.ae',
   'AlResalah.sa',
   'LBC.sa',
   'RotanaCinemaEgypt.eg',
