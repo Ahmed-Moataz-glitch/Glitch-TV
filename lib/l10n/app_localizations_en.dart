@@ -277,4 +277,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get appDescription =>
       'Stream live TV channels, listen to Egyptian and international radio stations, and enjoy top podcasts all in one place.';
+
+  @override
+  String get noInternetConnection => 'No Internet Connection';
+
+  @override
+  String get noInternetPrompt =>
+      'Please check your network connection and try again.';
 }

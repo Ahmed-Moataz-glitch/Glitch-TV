@@ -76,7 +76,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
             icon: Icon(
               Icons.arrow_back_ios_new_rounded,
               color: context.textPrimary,
-              size: 20.sp,
+              size: 24.sp,
             ),
             onPressed: () => context.pop(),
           ),
@@ -96,7 +96,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                 color: isFavorite
                     ? AppColors.primaryLight
                     : context.textSecondary,
-                size: 22.sp,
+                size: 28.sp,
               ),
               onPressed: () async {
                 final isNowFav = await context

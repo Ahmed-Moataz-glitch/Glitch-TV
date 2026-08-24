@@ -625,6 +625,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stream live TV channels, listen to Egyptian and international radio stations, and enjoy top podcasts all in one place.'**
   String get appDescription;
+
+  /// No description provided for @noInternetConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'No Internet Connection'**
+  String get noInternetConnection;
+
+  /// No description provided for @noInternetPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your network connection and try again.'**
+  String get noInternetPrompt;
 }
 
 class _AppLocalizationsDelegate

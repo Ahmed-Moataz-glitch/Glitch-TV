@@ -111,5 +111,7 @@
   "arabicOption": "العربية (Arabic)",
   "about": "About",
   "appVersion": "Version 1.0.0",
-  "appDescription": "Stream live TV channels, listen to Egyptian and international radio stations, and enjoy top podcasts all in one place."
+  "appDescription": "Stream live TV channels, listen to Egyptian and international radio stations, and enjoy top podcasts all in one place.",
+  "noInternetConnection": "No Internet Connection",
+  "noInternetPrompt": "Please check your network connection and try again."
 }

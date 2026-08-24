@@ -5,7 +5,7 @@ class SettingsState {
   final Locale locale;
 
   const SettingsState({
-    this.themeMode = ThemeMode.system,
+    this.themeMode = ThemeMode.dark,
     this.locale = const Locale('en'),
   });
 

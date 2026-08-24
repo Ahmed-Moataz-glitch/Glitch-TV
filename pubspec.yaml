@@ -39,6 +39,7 @@ dependencies:
   shared_preferences: ^2.5.4
   intl: any
   animated_text_kit: ^4.3.0
+  flutter_offline: ^6.0.0
 
 dev_dependencies:
   flutter_test:

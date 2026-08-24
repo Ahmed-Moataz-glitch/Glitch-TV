@@ -277,4 +277,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get appDescription =>
       'شاهد القنوات التلفزيونية المباشرة واستمع لمحطات الراديو المصرية والعالمية وأفضل البودكاست في مكان واحد.';
+
+  @override
+  String get noInternetConnection => 'لا يوجد اتصال بالإنترنت';
+
+  @override
+  String get noInternetPrompt =>
+      'يرجى التحقق من اتصالك بالشبكة والمحاولة مرة أخرى.';
 }

@@ -82,9 +82,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   textSecondary: textSecondary,
                   l10n: l10n,
                 ),
-
-                SizedBox(height: 24.h),
-
+                SizedBox(height: 16.h),
                 // Language Section
                 _buildSectionHeader(
                   title: l10n?.language ?? 'Language',
@@ -92,7 +90,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   textPrimary: textPrimary,
                 ),
                 SizedBox(height: 12.h),
-
                 // Language Dropdown Menu Widget
                 _buildLanguageDropdown(
                   context: context,
@@ -104,7 +101,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   l10n: l10n,
                 ),
 
-                SizedBox(height: 24.h),
+                SizedBox(height: 16.h),
 
                 // About Section
                 _buildSectionHeader(
@@ -113,7 +110,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   textPrimary: textPrimary,
                 ),
                 SizedBox(height: 12.h),
-
                 _buildAboutCard(
                   isDark: isDark,
                   cardBg: cardBg,
@@ -121,7 +117,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   textSecondary: textSecondary,
                   l10n: l10n,
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: 24.h),
                 Align(
                   alignment: Alignment.center,
                   child: AnimatedTextKit(
@@ -131,7 +127,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         'DEVELOPED BY AHMED GLITCH',
                         textStyle: TextStyle(
                           fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w800,
                         ),
                         colors: [
                           AppColors.primary,

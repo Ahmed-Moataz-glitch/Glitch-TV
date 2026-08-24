@@ -25,6 +25,7 @@ import 'package:glitch_tv/features/home/presentation/view_model/home_cubit.dart'
 import 'package:glitch_tv/features/settings/data/repo/data_source/settings_local_data_source_impl.dart';
 import 'package:glitch_tv/features/settings/domain/repo/data_source/settings_local_data_source.dart';
 import 'package:glitch_tv/features/settings/presentation/view_model/settings_cubit.dart';
+import 'package:glitch_tv/core/view/widgets/offline_wrapper.dart';
 import 'package:glitch_tv/features/settings/presentation/view_model/settings_state.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -122,6 +123,15 @@ class _MyAppState extends State<MyApp> {
                 supportedLocales: AppLocalizations.supportedLocales,
                 localizationsDelegates: AppLocalizations.localizationsDelegates,
                 routerConfig: AppRouter.router,
+                builder: (context, child) {
+                  return OfflineWrapper(
+                    onRetry: () {
+                      _homeCubit.loadData();
+                      _favoritesCubit.loadFavorites();
+                    },
+                    child: child ?? const SizedBox.shrink(),
+                  );
+                },
               );
             },
           ),

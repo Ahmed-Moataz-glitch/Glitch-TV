@@ -52,7 +52,7 @@ class ChannelInfoHeader extends StatelessWidget {
             height: 100.h,
             padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
-              color: AppColors.textSecondary.withAlpha(150),
+              color: context.isDark ? AppColors.textSecondary.withAlpha(150) : AppColors.textSecondaryLight.withAlpha(50),
               shape: BoxShape.rectangle,
               borderRadius: BorderRadius.circular(16.r),
               border: Border.all(
