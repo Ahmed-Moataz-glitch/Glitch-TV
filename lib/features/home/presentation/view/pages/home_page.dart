@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:glitch_tv/core/utils/app_assets.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_router.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
 import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dart';
@@ -43,6 +44,37 @@ class _HomePageState extends State<HomePage> {
     'Culture',
     'Classics',
   ];
+
+  String _getLocalizedCategory(BuildContext context, String category) {
+    final l10n = context.l10n;
+    if (l10n == null) return category;
+    switch (category) {
+      case 'All':
+        return l10n.all;
+      case 'Quran':
+        return l10n.categoryQuran;
+      case 'Music':
+        return l10n.categoryMusic;
+      case 'News':
+        return l10n.categoryNews;
+      case 'Culture':
+        return l10n.categoryCulture;
+      case 'Classics':
+        return l10n.categoryClassics;
+      case 'Technology':
+        return l10n.categoryTechnology;
+      case 'Business':
+        return l10n.categoryBusiness;
+      case 'Stories':
+        return l10n.categoryStories;
+      case 'Self Development':
+        return l10n.categorySelfDev;
+      case 'Comedy':
+        return l10n.categoryComedy;
+      default:
+        return category;
+    }
+  }
 
   bool _matchesRadioCategory(RadioStationEntity station, String category) {
     if (category == 'All') return true;
@@ -207,10 +239,12 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: AppColors.scaffoldBackground,
+        backgroundColor: context.scaffoldBg,
         body: SafeArea(
           child: Column(
             children: [
@@ -220,47 +254,48 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   children: [
                     _buildTopHeader(),
-                    SizedBox(height: 24.h),
+                    SizedBox(height: 20.h),
                     Row(
                       children: [
                         Expanded(
                           child: ButtonsTabBar(
                             buttonMargin: EdgeInsets.symmetric(
-                              horizontal: 32.w,
+                              horizontal: 30.w,
                             ),
                             backgroundColor: AppColors.primary,
-                            unselectedBackgroundColor: AppColors.card,
+                            unselectedBackgroundColor: context.cardBg,
                             labelStyle: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 13.sp,
                             ),
                             unselectedLabelStyle: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: context.textPrimary,
                               fontWeight: FontWeight.w600,
                               fontSize: 13.sp,
                             ),
                             borderWidth: 1,
-                            borderColor: AppColors.primaryLight.withAlpha(60),
-                            unselectedBorderColor: AppColors.textSecondary
-                                .withAlpha(30),
-                            radius: 12.r,
+                            borderColor: AppColors.primaryLight.withAlpha(80),
+                            unselectedBorderColor: context.isDark
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : Colors.black.withValues(alpha: 0.06),
+                            radius: 14.r,
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 16.w,
                               vertical: 8.h,
                             ),
-                            tabs: const [
+                            tabs: [
                               Tab(
-                                icon: Icon(Icons.live_tv_rounded, size: 18),
-                                text: 'TV',
+                                icon: const Icon(Icons.live_tv_rounded, size: 18),
+                                text: l10n?.tv ?? 'TV',
                               ),
                               Tab(
-                                icon: Icon(Icons.radio_rounded, size: 18),
-                                text: 'Radio',
+                                icon: const Icon(Icons.radio_rounded, size: 18),
+                                text: l10n?.radio ?? 'Radio',
                               ),
                               Tab(
-                                icon: Icon(Icons.podcasts_rounded, size: 18),
-                                text: 'Podcast',
+                                icon: const Icon(Icons.podcasts_rounded, size: 18),
+                                text: l10n?.podcasts ?? 'Podcasts',
                               ),
                             ],
                           ),
@@ -270,7 +305,7 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
-              SizedBox(height: 8.h),
+              SizedBox(height: 4.h),
               // TabBarView Content
               Expanded(
                 child: TabBarView(
@@ -281,7 +316,7 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
-              SizedBox(height: 12.h),
+              SizedBox(height: 8.h),
             ],
           ),
         ),
@@ -290,6 +325,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildTopHeader() {
+    final l10n = context.l10n;
+
     return Row(
       children: [
         Stack(
@@ -299,7 +336,9 @@ class _HomePageState extends State<HomePage> {
               width: 42.w,
               height: 40.h,
               decoration: BoxDecoration(
-                color: AppColors.textPrimary.withAlpha(220),
+                color: context.isDark
+                    ? AppColors.textPrimary.withAlpha(220)
+                    : AppColors.primary.withAlpha(30),
                 borderRadius: BorderRadius.circular(24.r),
               ),
             ),
@@ -313,15 +352,15 @@ class _HomePageState extends State<HomePage> {
             Text(
               'GLITCH TV',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.textPrimary,
                 fontSize: 20.sp,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.2,
               ),
             ),
             Text(
-              'Live Media & Streams',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 11.sp),
+              l10n?.liveMediaStreams ?? 'Live Media & Streams',
+              style: TextStyle(color: context.textSecondary, fontSize: 11.sp),
             ),
           ],
         ),
@@ -329,9 +368,13 @@ class _HomePageState extends State<HomePage> {
         Container(
           padding: EdgeInsets.all(8.r),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: context.cardBg,
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.textSecondary.withAlpha(30)),
+            border: Border.all(
+              color: context.isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.06),
+            ),
           ),
           child: Icon(
             Icons.graphic_eq_rounded,
@@ -347,19 +390,21 @@ class _HomePageState extends State<HomePage> {
   // TAB 1: TV TAB
   // ----------------------------------------------------
   Widget _buildTvTab() {
+    final l10n = context.l10n;
+
     return RefreshIndicator(
       onRefresh: () async {
         await _homeCubit.loadData();
       },
       color: AppColors.primaryLight,
-      backgroundColor: AppColors.card,
+      backgroundColor: context.cardBg,
       child: BlocConsumer<HomeCubit, HomeState>(
         bloc: _homeCubit,
         listener: (context, state) {
           if (state is HomeError) {
             AppToast.showToast(
               context: context,
-              title: 'Error',
+              title: l10n?.error ?? 'Error',
               description: state.message,
               type: ToastificationType.error,
             );
@@ -390,10 +435,12 @@ class _HomePageState extends State<HomePage> {
                         // Search Bar Input
                         Container(
                           decoration: BoxDecoration(
-                            color: AppColors.card,
+                            color: context.cardBg,
                             borderRadius: BorderRadius.circular(16.r),
                             border: Border.all(
-                              color: AppColors.textSecondary.withAlpha(30),
+                              color: context.isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.black.withValues(alpha: 0.06),
                             ),
                           ),
                           child: TextField(
@@ -404,13 +451,14 @@ class _HomePageState extends State<HomePage> {
                               _homeCubit.searchChannels(value);
                             },
                             style: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: context.textPrimary,
                               fontSize: 14.sp,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'Search TV channels...',
+                              hintText: l10n?.searchTvChannels ??
+                                  'Search TV channels...',
                               hintStyle: TextStyle(
-                                color: AppColors.textSecondary.withAlpha(150),
+                                color: context.textSecondary.withValues(alpha: 0.7),
                                 fontSize: 14.sp,
                               ),
                               prefixIcon: Icon(
@@ -422,7 +470,7 @@ class _HomePageState extends State<HomePage> {
                                   ? IconButton(
                                       icon: Icon(
                                         Icons.clear_rounded,
-                                        color: AppColors.textSecondary,
+                                        color: context.textSecondary,
                                         size: 18.sp,
                                       ),
                                       onPressed: () {
@@ -458,9 +506,9 @@ class _HomePageState extends State<HomePage> {
                             state.featuredItems.isNotEmpty &&
                             state.selectedCategory == 'All') ...[
                           Text(
-                            'Featured Channels',
+                            l10n?.featuredChannels ?? 'Featured Channels',
                             style: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: context.textPrimary,
                               fontSize: 18.sp,
                               fontWeight: FontWeight.bold,
                             ),
@@ -476,10 +524,10 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             Text(
                               state.selectedCategory == 'All'
-                                  ? 'All Channels'
-                                  : '${state.selectedCategory} Channels',
+                                  ? (l10n?.allChannels ?? 'All Channels')
+                                  : '${_getLocalizedCategory(context, state.selectedCategory)} (${state.filteredItems.length})',
                               style: TextStyle(
-                                color: AppColors.textPrimary,
+                                color: context.textPrimary,
                                 fontSize: 18.sp,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -490,11 +538,11 @@ class _HomePageState extends State<HomePage> {
                                 vertical: 4.h,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.card,
+                                color: context.cardBg,
                                 borderRadius: BorderRadius.circular(12.r),
                               ),
                               child: Text(
-                                '${state.filteredItems.length} channels',
+                                '${state.filteredItems.length}',
                                 style: TextStyle(
                                   color: AppColors.primaryLight,
                                   fontSize: 12.sp,
@@ -513,7 +561,9 @@ class _HomePageState extends State<HomePage> {
                 // Grid of channels
                 if (state.filteredItems.isEmpty)
                   SliverToBoxAdapter(
-                    child: _buildEmptyView('No TV channels found'),
+                    child: _buildEmptyView(
+                      l10n?.noChannelsFound ?? 'No TV channels found',
+                    ),
                   )
                 else
                   SliverPadding(
@@ -556,6 +606,8 @@ class _HomePageState extends State<HomePage> {
   // TAB 2: RADIO TAB
   // ----------------------------------------------------
   Widget _buildRadioTab() {
+    final l10n = context.l10n;
+
     return BlocBuilder<HomeCubit, HomeState>(
       bloc: _homeCubit,
       builder: (context, state) {
@@ -586,10 +638,12 @@ class _HomePageState extends State<HomePage> {
                   // Search Input
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color: context.cardBg,
                       borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
-                        color: AppColors.textSecondary.withAlpha(30),
+                        color: context.isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
                       ),
                     ),
                     child: TextField(
@@ -597,13 +651,14 @@ class _HomePageState extends State<HomePage> {
                       controller: _radioSearchController,
                       onChanged: (_) => setRadioState(() {}),
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.textPrimary,
                         fontSize: 14.sp,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Search Radio Stations...',
+                        hintText: l10n?.searchRadioStations ??
+                            'Search Radio Stations...',
                         hintStyle: TextStyle(
-                          color: AppColors.textSecondary.withAlpha(150),
+                          color: context.textSecondary.withValues(alpha: 0.7),
                           fontSize: 14.sp,
                         ),
                         prefixIcon: Icon(
@@ -615,7 +670,7 @@ class _HomePageState extends State<HomePage> {
                             ? IconButton(
                                 icon: Icon(
                                   Icons.clear_rounded,
-                                  color: AppColors.textSecondary,
+                                  color: context.textSecondary,
                                   size: 18.sp,
                                 ),
                                 onPressed: () {
@@ -644,8 +699,10 @@ class _HomePageState extends State<HomePage> {
                       itemBuilder: (context, index) {
                         final cat = _radioCategories[index];
                         final isSelected = cat == _selectedRadioCategory;
+                        final localizedCat = _getLocalizedCategory(context, cat);
+
                         return ChoiceChip(
-                          label: Text(cat),
+                          label: Text(localizedCat),
                           selected: isSelected,
                           onSelected: (selected) {
                             setRadioState(() {
@@ -653,11 +710,11 @@ class _HomePageState extends State<HomePage> {
                             });
                           },
                           selectedColor: AppColors.primary,
-                          backgroundColor: AppColors.card,
+                          backgroundColor: context.cardBg,
                           labelStyle: TextStyle(
                             color: isSelected
                                 ? Colors.white
-                                : AppColors.textPrimary,
+                                : context.textPrimary,
                             fontSize: 12.sp,
                             fontWeight: isSelected
                                 ? FontWeight.bold
@@ -668,7 +725,9 @@ class _HomePageState extends State<HomePage> {
                             side: BorderSide(
                               color: isSelected
                                   ? AppColors.primary
-                                  : AppColors.textSecondary.withAlpha(30),
+                                  : (context.isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.06)),
                             ),
                           ),
                           showCheckmark: false,
@@ -683,9 +742,9 @@ class _HomePageState extends State<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Egyptian Radio Stations',
+                        l10n?.popularStations ?? 'Popular Stations',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.textPrimary,
                           fontSize: 18.sp,
                           fontWeight: FontWeight.bold,
                         ),
@@ -696,11 +755,11 @@ class _HomePageState extends State<HomePage> {
                           vertical: 4.h,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.card,
+                          color: context.cardBg,
                           borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: Text(
-                          '${filtered.length} stations',
+                          '${filtered.length}',
                           style: TextStyle(
                             color: AppColors.primaryLight,
                             fontSize: 12.sp,
@@ -716,7 +775,10 @@ class _HomePageState extends State<HomePage> {
                   if (state is HomeLoading)
                     _buildLoadingScreen()
                   else if (filtered.isEmpty)
-                    _buildEmptyView('No Egyptian radio stations found')
+                    _buildEmptyView(
+                      l10n?.noRadioStationsFound ??
+                          'No Egyptian radio stations found',
+                    )
                   else
                     ListView.separated(
                       shrinkWrap: true,
@@ -728,10 +790,12 @@ class _HomePageState extends State<HomePage> {
                         return Container(
                           padding: EdgeInsets.all(12.r),
                           decoration: BoxDecoration(
-                            color: AppColors.card,
+                            color: context.cardBg,
                             borderRadius: BorderRadius.circular(16.r),
                             border: Border.all(
-                              color: AppColors.textSecondary.withAlpha(20),
+                              color: context.isDark
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : Colors.black.withValues(alpha: 0.06),
                             ),
                           ),
                           child: Row(
@@ -770,7 +834,7 @@ class _HomePageState extends State<HomePage> {
                                     Text(
                                       station.name,
                                       style: TextStyle(
-                                        color: AppColors.textPrimary,
+                                        color: context.textPrimary,
                                         fontSize: 15.sp,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -810,7 +874,7 @@ class _HomePageState extends State<HomePage> {
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                color: AppColors.textSecondary,
+                                                color: context.textSecondary,
                                                 fontSize: 12.sp,
                                               ),
                                             ),
@@ -835,7 +899,7 @@ class _HomePageState extends State<HomePage> {
                                   Icons.play_arrow_rounded,
                                   size: 18.sp,
                                 ),
-                                label: const Text('Listen'),
+                                label: Text(l10n?.live ?? 'Live'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: Colors.white,
@@ -866,6 +930,8 @@ class _HomePageState extends State<HomePage> {
   // TAB 3: PODCAST TAB
   // ----------------------------------------------------
   Widget _buildPodcastTab() {
+    final l10n = context.l10n;
+
     return BlocBuilder<HomeCubit, HomeState>(
       bloc: _homeCubit,
       builder: (context, state) {
@@ -904,10 +970,12 @@ class _HomePageState extends State<HomePage> {
                   // Search Input
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color: context.cardBg,
                       borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
-                        color: AppColors.textSecondary.withAlpha(30),
+                        color: context.isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
                       ),
                     ),
                     child: TextField(
@@ -915,13 +983,14 @@ class _HomePageState extends State<HomePage> {
                       controller: _podcastSearchController,
                       onChanged: (_) => setPodcastState(() {}),
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.textPrimary,
                         fontSize: 14.sp,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Search Podcasts & Shows...',
+                        hintText: l10n?.searchPodcasts ??
+                            'Search Podcasts & Shows...',
                         hintStyle: TextStyle(
-                          color: AppColors.textSecondary.withAlpha(150),
+                          color: context.textSecondary.withValues(alpha: 0.7),
                           fontSize: 14.sp,
                         ),
                         prefixIcon: Icon(
@@ -933,7 +1002,7 @@ class _HomePageState extends State<HomePage> {
                             ? IconButton(
                                 icon: Icon(
                                   Icons.clear_rounded,
-                                  color: AppColors.textSecondary,
+                                  color: context.textSecondary,
                                   size: 18.sp,
                                 ),
                                 onPressed: () {
@@ -962,8 +1031,10 @@ class _HomePageState extends State<HomePage> {
                       itemBuilder: (context, index) {
                         final cat = categoriesList[index];
                         final isSelected = cat == _selectedPodcastCategory;
+                        final localizedCat = _getLocalizedCategory(context, cat);
+
                         return ChoiceChip(
-                          label: Text(cat),
+                          label: Text(localizedCat),
                           selected: isSelected,
                           onSelected: (selected) {
                             setPodcastState(() {
@@ -971,11 +1042,11 @@ class _HomePageState extends State<HomePage> {
                             });
                           },
                           selectedColor: AppColors.primary,
-                          backgroundColor: AppColors.card,
+                          backgroundColor: context.cardBg,
                           labelStyle: TextStyle(
                             color: isSelected
                                 ? Colors.white
-                                : AppColors.textPrimary,
+                                : context.textPrimary,
                             fontSize: 12.sp,
                             fontWeight: isSelected
                                 ? FontWeight.bold
@@ -986,7 +1057,9 @@ class _HomePageState extends State<HomePage> {
                             side: BorderSide(
                               color: isSelected
                                   ? AppColors.primary
-                                  : AppColors.textSecondary.withAlpha(30),
+                                  : (context.isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.06)),
                             ),
                           ),
                           showCheckmark: false,
@@ -1001,9 +1074,9 @@ class _HomePageState extends State<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Egyptian Podcasts & Shows',
+                        l10n?.trendingPodcasts ?? 'Trending Podcasts',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: context.textPrimary,
                           fontSize: 18.sp,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1014,11 +1087,11 @@ class _HomePageState extends State<HomePage> {
                           vertical: 4.h,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.card,
+                          color: context.cardBg,
                           borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: Text(
-                          '${filtered.length} shows',
+                          '${filtered.length}',
                           style: TextStyle(
                             color: AppColors.primaryLight,
                             fontSize: 12.sp,
@@ -1034,7 +1107,9 @@ class _HomePageState extends State<HomePage> {
                   if (state is HomeLoading)
                     _buildLoadingScreen()
                   else if (filtered.isEmpty)
-                    _buildEmptyView('No Egyptian podcasts found')
+                    _buildEmptyView(
+                      l10n?.noPodcastsFound ?? 'No podcasts found',
+                    )
                   else
                     ListView.separated(
                       shrinkWrap: true,
@@ -1057,10 +1132,12 @@ class _HomePageState extends State<HomePage> {
                           child: Container(
                             padding: EdgeInsets.all(12.r),
                             decoration: BoxDecoration(
-                              color: AppColors.card,
+                              color: context.cardBg,
                               borderRadius: BorderRadius.circular(16.r),
                               border: Border.all(
-                                color: AppColors.textSecondary.withAlpha(20),
+                                color: context.isDark
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : Colors.black.withValues(alpha: 0.06),
                               ),
                             ),
                             child: Row(
@@ -1077,7 +1154,7 @@ class _HomePageState extends State<HomePage> {
                                     child: podcast.artworkUrl.isNotEmpty
                                         ? CachedNetworkImage(
                                             imageUrl: podcast.artworkUrl,
-                                            fit: BoxFit.fill,
+                                            fit: BoxFit.cover,
                                             errorWidget: (_, __, ___) => Icon(
                                               Icons.mic_external_on_rounded,
                                               color: AppColors.primaryLight,
@@ -1101,7 +1178,7 @@ class _HomePageState extends State<HomePage> {
                                       Text(
                                         podcast.name,
                                         style: TextStyle(
-                                          color: AppColors.textPrimary,
+                                          color: context.textPrimary,
                                           fontSize: 16.sp,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -1110,7 +1187,7 @@ class _HomePageState extends State<HomePage> {
                                         Text(
                                           'Host: ${podcast.host}',
                                           style: TextStyle(
-                                            color: AppColors.textSecondary,
+                                            color: context.textSecondary,
                                             fontSize: 13.sp,
                                           ),
                                         ),
@@ -1125,10 +1202,13 @@ class _HomePageState extends State<HomePage> {
                                           SizedBox(width: 4.w),
                                           Text(
                                             podcast.category.isNotEmpty
-                                                ? podcast.category
-                                                : 'General',
+                                                ? _getLocalizedCategory(
+                                                    context,
+                                                    podcast.category,
+                                                  )
+                                                : (l10n?.podcasts ?? 'Podcasts'),
                                             style: TextStyle(
-                                              color: AppColors.textPrimary,
+                                              color: context.textPrimary,
                                               fontSize: 12.sp,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -1160,26 +1240,26 @@ class _HomePageState extends State<HomePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Shimmer.fromColors(
-            baseColor: AppColors.card,
+            baseColor: context.cardBg,
             highlightColor: AppColors.primary.withAlpha(40),
             child: Container(
               width: double.infinity,
               height: 48.h,
               decoration: BoxDecoration(
-                color: AppColors.card,
+                color: context.cardBg,
                 borderRadius: BorderRadius.circular(16.r),
               ),
             ),
           ),
           SizedBox(height: 20.h),
           Shimmer.fromColors(
-            baseColor: AppColors.card,
+            baseColor: context.cardBg,
             highlightColor: AppColors.primary.withAlpha(40),
             child: Container(
               width: double.infinity,
               height: 160.h,
               decoration: BoxDecoration(
-                color: AppColors.card,
+                color: context.cardBg,
                 borderRadius: BorderRadius.circular(20.r),
               ),
             ),
@@ -1197,11 +1277,11 @@ class _HomePageState extends State<HomePage> {
               itemCount: 6,
               itemBuilder: (context, index) {
                 return Shimmer.fromColors(
-                  baseColor: AppColors.card,
+                  baseColor: context.cardBg,
                   highlightColor: AppColors.primary.withAlpha(40),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: AppColors.card,
+                      color: context.cardBg,
                       borderRadius: BorderRadius.circular(16.r),
                     ),
                   ),
@@ -1215,6 +1295,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildErrorView(String message) {
+    final l10n = context.l10n;
+
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(32.r),
@@ -1228,9 +1310,9 @@ class _HomePageState extends State<HomePage> {
             ),
             SizedBox(height: 16.h),
             Text(
-              'Failed to load channels',
+              l10n?.error ?? 'Error',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.textPrimary,
                 fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
               ),
@@ -1239,13 +1321,13 @@ class _HomePageState extends State<HomePage> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13.sp),
+              style: TextStyle(color: context.textSecondary, fontSize: 13.sp),
             ),
             SizedBox(height: 24.h),
             ElevatedButton.icon(
               onPressed: () => _homeCubit.loadData(),
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
+              label: Text(l10n?.retry ?? 'Retry'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -1271,13 +1353,13 @@ class _HomePageState extends State<HomePage> {
           Icon(
             Icons.search_off_rounded,
             size: 64.sp,
-            color: AppColors.textSecondary.withAlpha(100),
+            color: context.textSecondary.withValues(alpha: 0.5),
           ),
           SizedBox(height: 12.h),
           Text(
             title,
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 16.sp,
               fontWeight: FontWeight.bold,
             ),
@@ -1286,7 +1368,7 @@ class _HomePageState extends State<HomePage> {
           Text(
             'Try searching with a different keyword or category',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+            style: TextStyle(color: context.textSecondary, fontSize: 12.sp),
           ),
         ],
       ),

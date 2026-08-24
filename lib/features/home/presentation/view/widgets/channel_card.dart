@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/favorites/presentation/view_model/favorites_cubit.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
@@ -29,6 +30,7 @@ class ChannelCard extends StatelessWidget {
 
     final favoritesCubit = context.watch<FavoritesCubit>();
     final isFavorite = favoritesCubit.isChannelFavorite(channel.id);
+    final l10n = context.l10n;
 
     return Material(
       color: Colors.transparent,
@@ -37,15 +39,17 @@ class ChannelCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16.r),
         child: Container(
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: context.cardBg,
             borderRadius: BorderRadius.circular(16.r),
             border: Border.all(
-              color: AppColors.textSecondary.withAlpha(25),
+              color: context.isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.06),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(40),
+                color: Colors.black.withValues(alpha: context.isDark ? 0.25 : 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -61,7 +65,9 @@ class ChannelCard extends StatelessWidget {
                     Container(
                       width: size.width,
                       decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withAlpha(200),
+                        color: context.isDark
+                            ? AppColors.textSecondary.withAlpha(200)
+                            : const Color(0xFFEAE8F2),
                         borderRadius:
                             BorderRadius.vertical(top: Radius.circular(16.r)),
                       ),
@@ -73,10 +79,10 @@ class ChannelCard extends StatelessWidget {
                                 fit: BoxFit.contain,
                                 placeholder: (context, url) =>
                                     Shimmer.fromColors(
-                                  baseColor: AppColors.card,
+                                  baseColor: context.cardBg,
                                   highlightColor:
                                       AppColors.primary.withAlpha(40),
-                                  child: Container(color: AppColors.card),
+                                  child: Container(color: context.cardBg),
                                 ),
                                 errorWidget: (context, url, error) => Icon(
                                   Icons.tv,
@@ -103,14 +109,14 @@ class ChannelCard extends StatelessWidget {
                             final channelDisplayName = channel.name.isNotEmpty
                                 ? channel.name
                                 : channel.id;
+                            final title = isNowFav
+                                ? (l10n?.addedToFavorites ?? 'Added to Favorites')
+                                : (l10n?.removedFromFavorites ??
+                                    'Removed from Favorites');
                             AppToast.showToast(
                               context: context,
-                              title: isNowFav
-                                  ? 'Added to Favorites'
-                                  : 'Removed from Favorites',
-                              description: isNowFav
-                                  ? '$channelDisplayName added to your favorites.'
-                                  : '$channelDisplayName removed from your favorites.',
+                              title: title,
+                              description: channelDisplayName,
                               type: isNowFav
                                   ? ToastificationType.success
                                   : ToastificationType.info,
@@ -130,7 +136,7 @@ class ChannelCard extends StatelessWidget {
                             size: 24.sp,
                             color: isFavorite
                                 ? AppColors.primaryLight
-                                : AppColors.textSecondary,
+                                : Colors.white70,
                           ),
                         ),
                       ),
@@ -150,9 +156,9 @@ class ChannelCard extends StatelessWidget {
                           ),
                           child: Text(
                             channel.country.toUpperCase(),
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 12.sp,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -172,7 +178,7 @@ class ChannelCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: context.textPrimary,
                         fontSize: 15.sp,
                         fontWeight: FontWeight.bold,
                       ),
@@ -186,14 +192,14 @@ class ChannelCard extends StatelessWidget {
                             vertical: 4.h,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryDark.withAlpha(100),
+                            color: AppColors.primaryDark.withAlpha(context.isDark ? 100 : 40),
                             borderRadius: BorderRadius.circular(8.r),
                           ),
                           child: Text(
                             category,
-                            style: TextStyle(
-                              color: AppColors.primaryLight,
-                              fontSize: 12.sp,
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

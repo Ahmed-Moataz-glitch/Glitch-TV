@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_router.dart';
+import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/favorites/presentation/view_model/favorites_cubit.dart';
 import 'package:glitch_tv/features/home/presentation/view/widgets/category_selector.dart';
@@ -38,21 +39,23 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
+      backgroundColor: context.scaffoldBg,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             await context.read<FavoritesCubit>().loadFavorites();
           },
           color: AppColors.primaryLight,
-          backgroundColor: AppColors.card,
+          backgroundColor: context.cardBg,
           child: BlocConsumer<FavoritesCubit, FavoritesState>(
             listener: (context, state) {
               if (state is FavoritesError) {
                 AppToast.showToast(
                   context: context,
-                  title: 'Error',
+                  title: l10n?.error ?? 'Error',
                   description: state.message,
                   type: ToastificationType.error,
                 );
@@ -102,8 +105,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: _buildEmptyState(
-                          title: 'No Favorite Channels Yet',
-                          description:
+                          title: l10n?.noFavoritesYet ??
+                              'No Favorite Channels Yet',
+                          description: l10n?.noFavoritesDescription ??
                               'Tap the heart icon on any channel card to save it here for quick access.',
                           icon: Icons.favorite_border_rounded,
                         ),
@@ -111,7 +115,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     else if (state.filteredFavorites.isEmpty)
                       SliverToBoxAdapter(
                         child: _buildEmptyState(
-                          title: 'No Matching Favorites',
+                          title: l10n?.noResultsFound ?? 'No Matching Favorites',
                           description:
                               'No channels match your current search or category filter.',
                           icon: Icons.search_off_rounded,
@@ -163,15 +167,20 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Widget _buildTopHeader(FavoritesState state) {
     final count = state is FavoritesLoaded ? state.allFavorites.length : 0;
+    final l10n = context.l10n;
 
     return Row(
       children: [
         Container(
           padding: EdgeInsets.all(10.r),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: context.cardBg,
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.textSecondary.withAlpha(30)),
+            border: Border.all(
+              color: context.isDark
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.06),
+            ),
           ),
           child: Icon(
             Icons.favorite_rounded,
@@ -184,18 +193,18 @@ class _FavoritesPageState extends State<FavoritesPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'FAVORITES',
+              l10n?.favorites.toUpperCase() ?? 'FAVORITES',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.textPrimary,
                 fontSize: 20.sp,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.2,
               ),
             ),
             Text(
-              'Your Saved TV Channels',
+              l10n?.favoriteChannels ?? 'Your Saved TV Channels',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: context.textSecondary,
                 fontSize: 11.sp,
               ),
             ),
@@ -209,7 +218,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               vertical: 6.h,
             ),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: context.cardBg,
               borderRadius: BorderRadius.circular(16.r),
               border: Border.all(
                 color: AppColors.primaryLight.withAlpha(50),
@@ -225,7 +234,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 ),
                 SizedBox(width: 6.w),
                 Text(
-                  '$count Saved',
+                  '$count',
                   style: TextStyle(
                     color: AppColors.primaryLight,
                     fontSize: 12.sp,
@@ -240,12 +249,16 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildSearchBar(BuildContext context) {
+    final l10n = context.l10n;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.cardBg,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: AppColors.textSecondary.withAlpha(30),
+          color: context.isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
         ),
       ),
       child: TextField(
@@ -255,13 +268,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
           context.read<FavoritesCubit>().searchFavorites(value);
         },
         style: TextStyle(
-          color: AppColors.textPrimary,
+          color: context.textPrimary,
           fontSize: 14.sp,
         ),
         decoration: InputDecoration(
-          hintText: 'Search favorite channels...',
+          hintText: l10n?.searchFavorites ?? 'Search favorite channels...',
           hintStyle: TextStyle(
-            color: AppColors.textSecondary.withAlpha(150),
+            color: context.textSecondary.withValues(alpha: 0.7),
             fontSize: 14.sp,
           ),
           prefixIcon: Icon(
@@ -273,7 +286,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               ? IconButton(
                   icon: Icon(
                     Icons.clear_rounded,
-                    color: AppColors.textSecondary,
+                    color: context.textSecondary,
                     size: 18.sp,
                   ),
                   onPressed: () {
@@ -294,15 +307,17 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildSectionHeader(FavoritesLoaded state) {
+    final l10n = context.l10n;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           state.selectedCategory == 'All'
-              ? 'All Favorite Channels'
-              : '${state.selectedCategory} Favorites',
+              ? (l10n?.favoriteChannels ?? 'All Favorite Channels')
+              : state.selectedCategory,
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: context.textPrimary,
             fontSize: 17.sp,
             fontWeight: FontWeight.bold,
           ),
@@ -313,11 +328,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
             vertical: 4.h,
           ),
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: context.cardBg,
             borderRadius: BorderRadius.circular(12.r),
           ),
           child: Text(
-            '${state.filteredFavorites.length} channels',
+            '${state.filteredFavorites.length}',
             style: TextStyle(
               color: AppColors.primaryLight,
               fontSize: 12.sp,
@@ -343,7 +358,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           Container(
             padding: EdgeInsets.all(20.r),
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: context.cardBg,
               shape: BoxShape.circle,
               border: Border.all(
                 color: AppColors.primaryLight.withAlpha(40),
@@ -360,7 +375,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           Text(
             title,
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
             ),
@@ -370,7 +385,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
             description,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.textSecondary,
               fontSize: 13.sp,
               height: 1.4,
             ),
@@ -395,11 +410,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
         itemCount: 4,
         itemBuilder: (context, index) {
           return Shimmer.fromColors(
-            baseColor: AppColors.card,
+            baseColor: context.cardBg,
             highlightColor: AppColors.primary.withAlpha(40),
             child: Container(
               decoration: BoxDecoration(
-                color: AppColors.card,
+                color: context.cardBg,
                 borderRadius: BorderRadius.circular(16.r),
               ),
             ),
@@ -410,6 +425,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildErrorView(BuildContext context, String message) {
+    final l10n = context.l10n;
+
     return Padding(
       padding: EdgeInsets.all(32.r),
       child: Column(
@@ -422,9 +439,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
           ),
           SizedBox(height: 16.h),
           Text(
-            'Failed to load favorites',
+            l10n?.error ?? 'Failed to load favorites',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.textPrimary,
               fontSize: 16.sp,
               fontWeight: FontWeight.bold,
             ),
@@ -434,7 +451,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
             message,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: AppColors.textSecondary,
+              color: context.textSecondary,
               fontSize: 12.sp,
             ),
           ),
@@ -442,7 +459,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           ElevatedButton.icon(
             onPressed: () => context.read<FavoritesCubit>().loadFavorites(),
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
+            label: Text(l10n?.retry ?? 'Retry'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
