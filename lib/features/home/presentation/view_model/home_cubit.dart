@@ -10,6 +10,7 @@ import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dar
 import 'package:glitch_tv/features/home/domain/use_case/fetch_channels_use_case.dart';
 import 'package:glitch_tv/features/home/domain/use_case/fetch_logos_use_case.dart';
 import 'package:glitch_tv/features/home/domain/use_case/fetch_podcasts_use_case.dart';
+import 'package:glitch_tv/features/channel_details/data/api/channel_details_api.dart';
 import 'package:glitch_tv/features/home/domain/use_case/fetch_radio_stations_use_case.dart';
 
 part 'home_state.dart';
@@ -151,6 +152,9 @@ class HomeCubit extends Cubit<HomeState> {
       _featuredItemEntities = List.from(_allItemEntities);
 
       _applyFilters();
+
+      // Pre-warm channel streams cache in background for instant playback across the app
+      ChannelDetailsApi().fetchStreams();
     } catch (e) {
       emit(HomeError('Failed to load channels: ${e.toString()}'));
     }

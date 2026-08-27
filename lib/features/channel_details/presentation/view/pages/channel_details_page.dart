@@ -49,6 +49,8 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
     );
 
     _cubit.loadEpg();
+    // Prefetch channel streams in the background so player opens instantly
+    api.fetchStreams();
   }
 
   @override
@@ -143,7 +145,7 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
               },
               builder: (context, state) {
                 return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: const ClampingScrollPhysics(),
                   padding: EdgeInsets.symmetric(
                     horizontal: 16.w,
                     vertical: 12.h,

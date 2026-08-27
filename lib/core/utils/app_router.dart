@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:glitch_tv/core/view/widgets/app_section.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view/pages/channel_details_page.dart';
 import 'package:glitch_tv/features/channel_details/presentation/view/pages/channel_stream_page.dart';
+import 'package:glitch_tv/features/downloads/presentation/view/pages/downloads_page.dart';
 import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart';
 import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
 import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dart';
@@ -32,13 +33,15 @@ abstract class AppRouter {
   static const String podcastDetailsName = 'podcast-details';
   static const String podcastPlayerPath = '/podcast-player';
   static const String podcastPlayerName = 'podcast-player';
+  static const String downloadsPath = '/downloads';
+  static const String downloadsName = 'downloads';
   static late final GoRouter router;
 
   static void initializeRouter() {
     router = GoRouter(
       navigatorKey: navigatorKey,
       initialLocation: homePath,
-      debugLogDiagnostics: true,
+      debugLogDiagnostics: false,
       errorBuilder: (context, state) =>
           Scaffold(body: Center(child: Text('Page not found: ${state.uri}'))),
       routes: [
@@ -138,6 +141,11 @@ abstract class AppRouter {
             final podcast = state.extra as PodcastEntity;
             return PodcastPlayerPage(podcast: podcast);
           },
+        ),
+        GoRoute(
+          path: downloadsPath,
+          name: downloadsName,
+          builder: (context, state) => const DownloadsPage(),
         ),
       ],
     );

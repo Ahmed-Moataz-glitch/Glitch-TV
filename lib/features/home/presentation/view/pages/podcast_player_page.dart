@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
@@ -9,6 +10,7 @@ import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
 import 'package:glitch_tv/features/podcast_details/data/services/podcast_download_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:toastification/toastification.dart';
 import 'package:xml/xml.dart' as xml;
@@ -339,17 +341,19 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
   Future<void> _playEpisodeAtIndex(int index) async {
     if (index < 0 || index >= _episodesQueue.length) return;
 
+    final ep = _episodesQueue[index];
+    final initialDur = _parseDurationString(ep.duration);
+
     if (mounted) {
       setState(() {
         _currentEpisodeIndex = index;
         _isLoading = true;
         _position = Duration.zero;
-        _duration = Duration.zero;
+        _duration = initialDur;
       });
     }
 
     try {
-      final ep = _episodesQueue[index];
       await _audioPlayer.stop();
 
       // Check download status for UI & offline source selection
@@ -362,12 +366,34 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
         audioUrl: ep.audioUrl,
       );
 
+      final isOffline = downloadedFile != null && await downloadedFile.exists();
+
+      final artUri = (!isOffline && ep.artworkUrl.isNotEmpty)
+          ? Uri.tryParse(ep.artworkUrl)
+          : (!isOffline && _currentPodcast.artworkUrl.isNotEmpty
+              ? Uri.tryParse(_currentPodcast.artworkUrl)
+              : null);
+
+      final mediaItem = MediaItem(
+        id: ep.audioUrl,
+        album: _currentPodcast.name,
+        title: ep.title,
+        artist: _currentPodcast.host.isNotEmpty
+            ? _currentPodcast.host
+            : 'Glitch TV Podcast',
+        artUri: artUri,
+      );
+
       AudioSource audioSource;
-      if (downloadedFile != null && await downloadedFile.exists()) {
-        audioSource = AudioSource.file(downloadedFile.path);
+      if (isOffline) {
+        audioSource = AudioSource.file(
+          downloadedFile.path,
+          tag: mediaItem,
+        );
       } else {
         audioSource = AudioSource.uri(
           Uri.parse(ep.audioUrl),
+          tag: mediaItem,
           headers: const {
             'User-Agent':
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -549,8 +575,15 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     try {
       await _downloadService.downloadEpisode(
         podcastId: _currentPodcast.id,
+        podcastName: _currentPodcast.name,
+        podcastHost: _currentPodcast.host,
+        podcastArtwork: ep.artworkUrl.isNotEmpty
+            ? ep.artworkUrl
+            : _currentPodcast.artworkUrl,
         episodeTitle: ep.title,
         audioUrl: ep.audioUrl,
+        duration: ep.duration,
+        pubDate: ep.pubDate,
         onProgress: (p) {
           if (mounted) {
             setState(() {
@@ -715,9 +748,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                 title: Text(
                   '${speed}x${speed == 1.0 ? ' (Normal)' : ''}',
                   style: TextStyle(
-                    color: isSelected
-                        ? AppColors.primary
-                        : context.textPrimary,
+                    color: isSelected ? AppColors.primary : context.textPrimary,
                     fontWeight: isSelected
                         ? FontWeight.bold
                         : FontWeight.normal,
@@ -867,16 +898,43 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
       _volume = val;
       _isMuted = val == 0.0;
     });
-    await _audioPlayer.setVolume(val);
+    try {
+      await _audioPlayer.setVolume(val);
+    } catch (_) {}
   }
 
   PodcastEpisode? get _currentEpisode =>
       (_currentEpisodeIndex >= 0 &&
-              _currentEpisodeIndex < _episodesQueue.length)
-          ? _episodesQueue[_currentEpisodeIndex]
-          : null;
+          _currentEpisodeIndex < _episodesQueue.length)
+      ? _episodesQueue[_currentEpisodeIndex]
+      : null;
+
+  Duration _parseDurationString(String s) {
+    if (s.isEmpty) return Duration.zero;
+    final parts = s.trim().split(':');
+    if (parts.length == 3) {
+      final h = int.tryParse(parts[0]) ?? 0;
+      final m = int.tryParse(parts[1]) ?? 0;
+      final sSec = int.tryParse(parts[2]) ?? 0;
+      return Duration(hours: h, minutes: m, seconds: sSec);
+    } else if (parts.length == 2) {
+      final m = int.tryParse(parts[0]) ?? 0;
+      final sSec = int.tryParse(parts[1]) ?? 0;
+      return Duration(minutes: m, seconds: sSec);
+    } else if (parts.length == 1) {
+      final sec = int.tryParse(parts[0]) ?? 0;
+      return Duration(seconds: sec);
+    }
+    return Duration.zero;
+  }
 
   String _formatDuration(Duration d) {
+    if (d == Duration.zero && (_currentEpisode?.duration.isNotEmpty ?? false)) {
+      final parsed = _parseDurationString(_currentEpisode!.duration);
+      if (parsed > Duration.zero) {
+        d = parsed;
+      }
+    }
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final hours = d.inHours;
     final minutes = d.inMinutes.remainder(60);
@@ -896,10 +954,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
         '🎙️ Listen to "$epTitle" from "${_currentPodcast.name}" on Glitch TV!\n🔗 Stream: $epAudio\nEnjoy top Egyptian podcasts & TV on Glitch TV.';
 
     try {
-      await Share.share(
-        shareText,
-        subject: 'Listen to $epTitle on Glitch TV',
-      );
+      await Share.share(shareText, subject: 'Listen to $epTitle on Glitch TV');
     } catch (e) {
       debugPrint('Error sharing podcast: $e');
     }
@@ -907,6 +962,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
 
   @override
   Widget build(BuildContext context) {
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final size = MediaQuery.of(context).size;
     final epTitle = _currentEpisode?.title ?? _currentPodcast.name;
     final l10n = context.l10n;
@@ -958,7 +1014,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                               ? '${(_downloadProgress * 100).toInt()}%'
                               : '',
                           style: TextStyle(
-                            fontSize: 9.sp,
+                            fontSize: 11.5.sp,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primaryLight,
                           ),
@@ -1003,7 +1059,9 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                       vertical: 6.h,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(context.isDark ? 30 : 20),
+                      color: AppColors.primary.withAlpha(
+                        context.isDark ? 30 : 20,
+                      ),
                       borderRadius: BorderRadius.circular(20.r),
                       border: Border.all(
                         color: AppColors.primaryLight.withAlpha(50),
@@ -1108,10 +1166,12 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24.r),
                     child: _currentPodcast.artworkUrl.isNotEmpty
-                        ? Image.network(
-                            _currentPodcast.artworkUrl,
+                        ? CachedNetworkImage(
+                            imageUrl: _currentPodcast.artworkUrl,
+                            memCacheWidth: (210 * devicePixelRatio).toInt(),
+                            memCacheHeight: (210 * devicePixelRatio).toInt(),
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Icon(
+                            errorWidget: (_, __, ___) => Icon(
                               Icons.podcasts_rounded,
                               color: AppColors.primaryLight,
                               size: 80.sp,
@@ -1148,10 +1208,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: context.textSecondary,
-                  fontSize: 13.sp,
-                ),
+                style: TextStyle(color: context.textSecondary, fontSize: 13.sp),
               ),
 
               SizedBox(height: 24.h),
@@ -1267,8 +1324,8 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                   GestureDetector(
                     onTap: _playOrPause,
                     child: Container(
-                      width: 68.w,
-                      height: 68.h,
+                      width: 65.w,
+                      height: 65.h,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppColors.primary,

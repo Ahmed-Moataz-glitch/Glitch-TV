@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glitch_tv/features/podcast_details/data/services/podcast_download_service.dart';
+import 'package:hive/hive.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +11,7 @@ void main() {
 
   setUpAll(() {
     tempDir = Directory.systemTemp.createTempSync('podcast_test_');
+    Hive.init('${tempDir.path}/hive');
 
     const MethodChannel pathProviderChannel =
         MethodChannel('plugins.flutter.io/path_provider');
@@ -37,10 +39,13 @@ void main() {
     service = PodcastDownloadService();
   });
 
-  tearDownAll(() {
-    if (tempDir.existsSync()) {
-      tempDir.deleteSync(recursive: true);
-    }
+  tearDownAll(() async {
+    await Hive.close();
+    try {
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+    } catch (_) {}
   });
 
   group('PodcastDownloadService Tests', () {

@@ -1,11 +1,15 @@
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
-import 'package:glitch_tv/l10n/app_localizations.dart';
+import 'package:glitch_tv/core/view/widgets/offline_wrapper.dart';
 import 'package:glitch_tv/features/favorites/presentation/view/pages/favorites_page.dart';
+import 'package:glitch_tv/features/favorites/presentation/view_model/favorites_cubit.dart';
 import 'package:glitch_tv/features/home/presentation/view/pages/home_page.dart';
+import 'package:glitch_tv/features/home/presentation/view_model/home_cubit.dart';
 import 'package:glitch_tv/features/settings/presentation/view/pages/settings_page.dart';
+import 'package:glitch_tv/l10n/app_localizations.dart';
 
 class AppSection extends StatefulWidget {
   final int initialIndex;
@@ -56,11 +60,16 @@ class _AppSectionState extends State<AppSection> {
     final inactiveColor =
         isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+    return OfflineWrapper(
+      onRetry: () {
+        context.read<HomeCubit>().loadData();
+        context.read<FavoritesCubit>().loadFavorites();
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: AnimatedBottomNavigationBar.builder(
@@ -146,6 +155,7 @@ class _AppSectionState extends State<AppSection> {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -34,11 +34,23 @@ class LogosResponseDto {
     url = json['url'];
   }
 
-  static List<LogosResponseDto> fromJsonList(List<dynamic> jsonList) {
-    return jsonList
-        .whereType<Map<String, dynamic>>()
-        .map((json) => LogosResponseDto.fromJson(json))
-        .toList();
+  static List<LogosResponseDto> fromJsonList(
+    List<dynamic> jsonList, {
+    Set<String>? allowedChannelIds,
+  }) {
+    final lowerAllowed = allowedChannelIds?.map((e) => e.toLowerCase()).toSet();
+
+    final List<LogosResponseDto> list = [];
+    for (final item in jsonList) {
+      if (item is! Map<String, dynamic>) continue;
+      final ch = item['channel'] as String?;
+      if (ch == null) continue;
+      if (lowerAllowed != null && !lowerAllowed.contains(ch.toLowerCase())) {
+        continue;
+      }
+      list.add(LogosResponseDto.fromJson(item));
+    }
+    return list;
   }
 
   LogosResponseEntity toEntity() {

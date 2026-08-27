@@ -9,102 +9,120 @@ import 'package:glitch_tv/features/home/domain/entities/channel_item_entity.dart
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 
-class FeaturedSwiper extends StatelessWidget {
+class FeaturedSwiper extends StatefulWidget {
   final List<ChannelItemEntity> items;
 
-  const FeaturedSwiper({
-    super.key,
-    required this.items,
-  });
+  const FeaturedSwiper({super.key, required this.items});
+
+  @override
+  State<FeaturedSwiper> createState() => _FeaturedSwiperState();
+}
+
+class _FeaturedSwiperState extends State<FeaturedSwiper> {
+  late final SwiperController _swiperController;
+
+  @override
+  void initState() {
+    super.initState();
+    _swiperController = SwiperController();
+  }
+
+  @override
+  void dispose() {
+    _swiperController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    final size = MediaQuery.of(context).size;
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    if (widget.items.isEmpty) return const SizedBox.shrink();
     final l10n = context.l10n;
 
     return SizedBox(
       height: 170.h,
       child: Swiper(
-        itemCount: items.length,
+        controller: _swiperController,
+        physics: const ClampingScrollPhysics(),
+        itemCount: widget.items.length,
         autoplay: true,
         loop: true,
         autoplayDelay: 3000,
         viewportFraction: 0.85,
         scale: 0.9,
+        onTap: (index) {
+          context.push(
+            AppRouter.channelDetailsPath,
+            extra: widget.items[index],
+          );
+        },
         itemBuilder: (context, index) {
-          final item = items[index];
+          final item = widget.items[index];
           final channel = item.channel;
 
-          return GestureDetector(
-            onTap: () {
-              context.push(
-                AppRouter.channelDetailsPath,
-                extra: item,
-              );
-            },
-            child: Container(
-              margin: EdgeInsets.symmetric(vertical: 4.h),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: context.isDark
-                      ? [
-                          AppColors.primaryDark,
-                          AppColors.card,
-                        ]
-                      : [
-                          AppColors.primary,
-                          AppColors.primaryDark,
-                        ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20.r),
-                border: Border.all(
-                  color: AppColors.primaryLight.withAlpha(80),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+          return Container(
+            margin: EdgeInsets.symmetric(vertical: 4.h),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: context.isDark
+                    ? [AppColors.primaryDark, AppColors.card]
+                    : [AppColors.primary, AppColors.primaryDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20.r),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      right: -20.w,
-                      bottom: -20.h,
-                      child: Icon(
-                        Icons.live_tv_rounded,
-                        size: 140.sp,
-                        color: Colors.white.withAlpha(12),
-                      ),
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(
+                color: AppColors.primaryLight.withAlpha(80),
+                width: 1,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20.r),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -20.w,
+                    bottom: -20.h,
+                    child: Icon(
+                      Icons.live_tv_rounded,
+                      size: 140.sp,
+                      color: Colors.white.withAlpha(12),
                     ),
-                    Padding(
-                      padding: EdgeInsets.all(16.r),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 130.w,
-                            height: 100.h,
-                            padding: EdgeInsets.all(10.r),
-                            decoration: BoxDecoration(
-                              color: AppColors.textSecondary.withAlpha(100),
-                              borderRadius: BorderRadius.circular(16.r),
-                            ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.all(16.r),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 120.w,
+                          height: 100.h,
+                          padding: EdgeInsets.all(10.r),
+                          decoration: BoxDecoration(
+                            color: AppColors.textSecondary.withAlpha(100),
+                            borderRadius: BorderRadius.circular(16.r),
+                          ),
+                          child: Center(
                             child: item.logoUrl.isNotEmpty
                                 ? CachedNetworkImage(
                                     imageUrl: item.logoUrl,
+                                    memCacheWidth: (120 * devicePixelRatio)
+                                        .toInt(),
+                                    memCacheHeight: (100 * devicePixelRatio)
+                                        .toInt(),
                                     fit: BoxFit.contain,
-                                    placeholder: (context, url) => Shimmer.fromColors(
-                                      baseColor: Colors.grey.shade300,
-                                      highlightColor: Colors.grey.shade100,
-                                      child: Container(color: Colors.white),
-                                    ),
+                                    alignment: Alignment.center,
+                                    placeholder: (context, url) =>
+                                        Shimmer.fromColors(
+                                          baseColor: context.cardBg,
+                                          highlightColor: AppColors.primary
+                                              .withAlpha(40),
+                                          child: Container(
+                                            width: size.width,
+                                            height: size.height,
+                                            color: context.cardBg,
+                                          ),
+                                        ),
                                     errorWidget: (context, url, error) => Icon(
                                       Icons.tv,
                                       size: 40.sp,
@@ -117,73 +135,78 @@ class FeaturedSwiper extends StatelessWidget {
                                     color: AppColors.primaryLight,
                                   ),
                           ),
-                          SizedBox(width: 16.w),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-                                  decoration: BoxDecoration(
-                                    color: Colors.redAccent.withAlpha(220),
-                                    borderRadius: BorderRadius.circular(6.r),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 6.r,
-                                        height: 6.r,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                        ),
+                        ),
+                        SizedBox(width: 16.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w,
+                                  vertical: 3.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withAlpha(220),
+                                  borderRadius: BorderRadius.circular(6.r),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 6.r,
+                                      height: 6.r,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
                                       ),
-                                      SizedBox(width: 4.w),
-                                      Text(
-                                        l10n?.live ?? 'LIVE',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9.sp,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 0.5,
-                                        ),
+                                    ),
+                                    SizedBox(width: 4.w),
+                                    Text(
+                                      l10n?.live ?? 'LIVE',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9.sp,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(height: 8.h),
-                                Text(
-                                  channel.name.isNotEmpty ? channel.name : channel.id,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18.sp,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              ),
+                              SizedBox(height: 8.h),
+                              Text(
+                                channel.name.isNotEmpty
+                                    ? channel.name
+                                    : channel.id,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                SizedBox(height: 4.h),
-                                Text(
-                                  channel.categories.isNotEmpty
-                                      ? channel.categories.join(' • ')
-                                      : (l10n?.tv ?? 'TV'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12.sp,
-                                  ),
+                              ),
+                              SizedBox(height: 4.h),
+                              Text(
+                                channel.categories.isNotEmpty
+                                    ? channel.categories.join(' • ')
+                                    : (l10n?.tv ?? 'TV'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12.sp,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );

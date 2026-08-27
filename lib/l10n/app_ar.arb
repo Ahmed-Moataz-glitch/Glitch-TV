@@ -59,6 +59,8 @@
   "streamInterrupted": "انقطع البث",
   "reconnectStream": "إعادة الاتصال بالبث",
   "reconnectPrompt": "اضغط أدناه لإعادة الاتصال أو تبديل السيرفر",
+  "tryNextFeed": "تجربة السيرفر التالي",
+  "switchingToNextFeed": "انقطع البث. جاري تجربة سيرفر بديل...",
   "streamUnavailable": "البث غير متاح",
   "availableFeeds": "سيرفرات البث المتاحة ({count})",
   "fetchingStream": "جاري تحميل البث المباشر...",
@@ -99,5 +101,17 @@
   "appVersion": "الإصدار 1.0.0",
   "appDescription": "شاهد القنوات التلفزيونية المباشرة واستمع لمحطات الراديو المصرية والعالمية وأفضل البودكاست في مكان واحد.",
   "noInternetConnection": "لا يوجد اتصال بالإنترنت",
-  "noInternetPrompt": "يرجى التحقق من اتصالك بالشبكة والمحاولة مرة أخرى."
+  "noInternetPrompt": "يرجى التحقق من اتصالك بالشبكة والمحاولة مرة أخرى.",
+  "downloads": "التنزيلات",
+  "goToDownloads": "الذهاب إلى التنزيلات",
+  "noDownloadsYet": "لا توجد حلقات مُنزلة",
+  "noDownloadsDescription": "ستظهر حلقات البودكاست المُنزلة هنا للاستماع إليها بدون إنترنت.",
+  "downloadedEpisodes": "الحلقات المُنزلة",
+  "deleteDownload": "حذف التنزيل",
+  "deleteDownloadConfirmation": "هل أنت متأكد من حذف هذه الحلقة المُنزلة من جهازك؟",
+  "cancel": "إلغاء",
+  "delete": "حذف",
+  "storageUsed": "المساحة المستخدمة",
+  "playOffline": "تشغيل بدون إنترنت",
+  "searchDownloads": "البحث في التنزيلات..."
 }

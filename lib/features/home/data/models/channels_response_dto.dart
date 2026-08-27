@@ -49,11 +49,23 @@ class ChannelsResponseDto {
     website = json['website'];
   }
 
-  static List<ChannelsResponseDto> fromJsonList(List<dynamic> jsonList) {
-    return jsonList
-        .whereType<Map<String, dynamic>>()
-        .map((json) => ChannelsResponseDto.fromJson(json))
-        .toList();
+  static List<ChannelsResponseDto> fromJsonList(
+    List<dynamic> jsonList, {
+    Set<String>? allowedChannelIds,
+  }) {
+    final lowerAllowed = allowedChannelIds?.map((e) => e.toLowerCase()).toSet();
+
+    final List<ChannelsResponseDto> list = [];
+    for (final item in jsonList) {
+      if (item is! Map<String, dynamic>) continue;
+      final id = item['id'] as String?;
+      if (id == null) continue;
+      if (lowerAllowed != null && !lowerAllowed.contains(id.toLowerCase())) {
+        continue;
+      }
+      list.add(ChannelsResponseDto.fromJson(item));
+    }
+    return list;
   }
 
   ChannelsResponseEntity toEntity() {

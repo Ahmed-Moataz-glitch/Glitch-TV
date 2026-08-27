@@ -30,24 +30,26 @@ class ChannelDetailsDataSourceImpl extends ChannelDetailsDataSource {
   }) async {
     final target = channelId.trim();
 
-    // Check if channelId exists in channelsStreams map
-    String? customUrl;
-    for (var key in channelsStreams.keys) {
+    // 1. Check verifiedChannelStreams map first for tested direct HLS streams
+    VerifiedChannelStream? verified;
+    for (var key in verifiedChannelStreams.keys) {
       if (key.toLowerCase().trim() == target.toLowerCase()) {
-        customUrl = channelsStreams[key];
+        verified = verifiedChannelStreams[key];
         break;
       }
     }
 
-    final List<ChannelStreamEntity> customEntities = [];
-    if (customUrl != null && customUrl.isNotEmpty) {
-      customEntities.add(
+    final List<ChannelStreamEntity> verifiedEntities = [];
+    if (verified != null) {
+      verifiedEntities.add(
         ChannelStreamEntity(
           channelId: channelId,
-          title: 'Official Live Stream',
-          url: customUrl,
-          quality: 'HD Stream',
-          label: 'Official Stream',
+          title: verified.title,
+          url: verified.url,
+          quality: verified.quality,
+          label: 'Direct Stream (HD)',
+          referrer: verified.referrer,
+          userAgent: verified.userAgent,
         ),
       );
     }
@@ -62,7 +64,7 @@ class ChannelDetailsDataSourceImpl extends ChannelDetailsDataSource {
             .where((s) => s.channel != null && s.channel!.toLowerCase().trim() == lowerTarget)
             .toList();
 
-        // 2. Fallback ONLY if no exact channel ID match exists
+        // 2. Fallback if no exact channel ID match exists
         if (matched.isEmpty) {
           final prefix = lowerTarget.split('.').first;
           matched = (result.data ?? [])
@@ -74,24 +76,24 @@ class ChannelDetailsDataSourceImpl extends ChannelDetailsDataSource {
 
         final apiEntities = matched.map((s) => s.toEntity()).toList();
 
-        // Prioritize direct fast HLS/video streams first, web pages as secondary
-        final directStreams = apiEntities.where((s) {
-          final u = s.url.toLowerCase();
-          return u.contains('.m3u8') || u.contains('.mp4') || u.contains('.ts') || u.contains('.m3u');
-        }).toList();
+        // Combine verified streams first, followed by deduplicated API streams
+        final List<ChannelStreamEntity> uniqueStreams = [...verifiedEntities];
+        final Set<String> seenUrls = verifiedEntities.map((e) => e.url.toLowerCase()).toSet();
 
-        final otherApiStreams = apiEntities.where((s) => !directStreams.contains(s)).toList();
-
-        final combined = [...directStreams, ...otherApiStreams, ...customEntities];
+        for (var entity in apiEntities) {
+          final u = entity.url.toLowerCase().trim();
+          if (!seenUrls.contains(u)) {
+            seenUrls.add(u);
+            uniqueStreams.add(entity);
+          }
+        }
 
         return ApiSuccess<List<ChannelStreamEntity>>(
-          combined.isNotEmpty
-              ? combined
-              : (customEntities.isNotEmpty ? customEntities : []),
+          uniqueStreams.isNotEmpty ? uniqueStreams : verifiedEntities,
         );
       case ApiError<List<ChannelStreamDto>>():
-        if (customEntities.isNotEmpty) {
-          return ApiSuccess<List<ChannelStreamEntity>>(customEntities);
+        if (verifiedEntities.isNotEmpty) {
+          return ApiSuccess<List<ChannelStreamEntity>>(verifiedEntities);
         }
         return ApiError<List<ChannelStreamEntity>>(result.message);
     }

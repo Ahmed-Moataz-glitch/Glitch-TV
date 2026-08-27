@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_offline/flutter_offline.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_router.dart';
 import 'package:glitch_tv/core/utils/app_theme.dart';
+import 'package:go_router/go_router.dart';
 
-/// Pattern B: Full-Screen Offline Fallback Wrapper
+/// Full-Screen Offline Fallback Wrapper
 /// Replaces the screen content with [OfflineFallbackView] whenever internet connectivity is lost.
 class OfflineWrapper extends StatelessWidget {
   final Widget child;
@@ -50,14 +52,20 @@ class OfflineWrapper extends StatelessWidget {
   }
 }
 
-/// Standalone Full-Screen Offline Fallback View
+/// Standalone Full-Screen Offline Fallback View with 'Go to Downloads' Action
 class OfflineFallbackView extends StatelessWidget {
   final VoidCallback? onRetry;
+  final VoidCallback? onGoToDownloads;
 
-  const OfflineFallbackView({super.key, this.onRetry});
+  const OfflineFallbackView({
+    super.key,
+    this.onRetry,
+    this.onGoToDownloads,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
     final l10n = context.l10n;
 
     return Center(
@@ -78,13 +86,6 @@ class OfflineFallbackView extends StatelessWidget {
                   color: AppColors.primaryLight.withAlpha(70),
                   width: 1.5,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withAlpha(40),
-                    blurRadius: 24,
-                    spreadRadius: 2,
-                  ),
-                ],
               ),
               child: Icon(
                 Icons.wifi_off_rounded,
@@ -121,27 +122,69 @@ class OfflineFallbackView extends StatelessWidget {
             SizedBox(height: 32.h),
 
             // Retry Button
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: Icon(Icons.refresh_rounded, size: 20.sp),
-              label: Text(
-                l10n?.retry ?? 'Retry',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.bold,
+            SizedBox(
+              width: size.width,
+              child: ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: Icon(Icons.refresh_rounded, size: 20.sp),
+                label: Text(
+                  l10n?.retry ?? 'Retry',
+                  style: TextStyle(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  shadowColor: AppColors.primary.withAlpha(120),
+                  padding: EdgeInsets.symmetric(
+                    vertical: 14.h,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
                 ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 4,
-                shadowColor: AppColors.primary.withAlpha(120),
-                padding: EdgeInsets.symmetric(
-                  horizontal: 32.w,
-                  vertical: 14.h,
+            ),
+            SizedBox(height: 14.h),
+
+            // Go to Downloads Button
+            SizedBox(
+              width: size.width,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  if (onGoToDownloads != null) {
+                    onGoToDownloads!();
+                  } else {
+                    context.push(AppRouter.downloadsPath);
+                  }
+                },
+                icon: Icon(
+                  Icons.offline_pin_rounded,
+                  size: 22.sp,
+                  color: AppColors.primaryLight,
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.r),
+                label: Text(
+                  l10n?.goToDownloads ?? 'Go to Downloads',
+                  style: TextStyle(
+                    color: context.textPrimary,
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    vertical: 14.h,
+                  ),
+                  side: BorderSide(
+                    color: AppColors.primaryLight.withAlpha(140),
+                    width: 1.5,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
                 ),
               ),
             ),

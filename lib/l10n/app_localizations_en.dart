@@ -166,6 +166,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reconnectPrompt => 'Tap below to reconnect or switch feed';
 
   @override
+  String get tryNextFeed => 'Try Next Feed';
+
+  @override
+  String get switchingToNextFeed =>
+      'Stream interrupted. Trying next available feed...';
+
+  @override
   String get streamUnavailable => 'Stream Unavailable';
 
   @override
@@ -284,4 +291,42 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noInternetPrompt =>
       'Please check your network connection and try again.';
+
+  @override
+  String get downloads => 'Downloads';
+
+  @override
+  String get goToDownloads => 'Go to Downloads';
+
+  @override
+  String get noDownloadsYet => 'No Downloaded Episodes';
+
+  @override
+  String get noDownloadsDescription =>
+      'Downloaded podcast episodes will appear here for offline listening.';
+
+  @override
+  String get downloadedEpisodes => 'Downloaded Episodes';
+
+  @override
+  String get deleteDownload => 'Delete Download';
+
+  @override
+  String get deleteDownloadConfirmation =>
+      'Are you sure you want to delete this downloaded episode from your device?';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get storageUsed => 'Storage Used';
+
+  @override
+  String get playOffline => 'Play Offline';
+
+  @override
+  String get searchDownloads => 'Search downloads...';
 }

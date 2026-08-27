@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:glitch_tv/core/utils/api_result.dart';
 import 'package:glitch_tv/core/utils/app_api.dart';
+import 'package:glitch_tv/features/home/data/models/channels_model.dart';
 import 'package:glitch_tv/features/home/data/models/channels_response_dto.dart';
 import 'package:glitch_tv/features/home/data/models/logos_response_dto.dart';
 import 'package:glitch_tv/features/home/data/models/podcast_dto.dart';
@@ -12,17 +14,16 @@ class HomeApi {
   Future<ApiResult<List<LogosResponseDto>>> fetchLogos() async {
     final url = Uri.https(AppApi.iptvBaseUrl, AppApi.logosEndpoint);
     try {
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         return ApiError('Failed to fetch logos (${response.statusCode})');
       }
-      final responseBody = utf8.decode(
-        response.bodyBytes,
-        allowMalformed: true,
-      );
+      final Uint8List bytes = response.bodyBytes;
+      final allowedSet = channels.toSet();
       final dtos = await Isolate.run(() {
-        final jsonList = jsonDecode(responseBody) as List<dynamic>;
-        return LogosResponseDto.fromJsonList(jsonList);
+        final text = utf8.decode(bytes, allowMalformed: true);
+        final jsonList = jsonDecode(text) as List<dynamic>;
+        return LogosResponseDto.fromJsonList(jsonList, allowedChannelIds: allowedSet);
       });
       return ApiSuccess(dtos);
     } catch (e) {
@@ -33,17 +34,16 @@ class HomeApi {
   Future<ApiResult<List<ChannelsResponseDto>>> fetchChannels() async {
     final url = Uri.https(AppApi.iptvBaseUrl, AppApi.channelsEndpoint);
     try {
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
         return ApiError('Failed to fetch channels (${response.statusCode})');
       }
-      final responseBody = utf8.decode(
-        response.bodyBytes,
-        allowMalformed: true,
-      );
+      final Uint8List bytes = response.bodyBytes;
+      final allowedSet = channels.toSet();
       final dtos = await Isolate.run(() {
-        final jsonList = jsonDecode(responseBody) as List<dynamic>;
-        return ChannelsResponseDto.fromJsonList(jsonList);
+        final text = utf8.decode(bytes, allowMalformed: true);
+        final jsonList = jsonDecode(text) as List<dynamic>;
+        return ChannelsResponseDto.fromJsonList(jsonList, allowedChannelIds: allowedSet);
       });
       return ApiSuccess(dtos);
     } catch (e) {
@@ -58,12 +58,10 @@ class HomeApi {
       if (response.statusCode != 200) {
         return ApiError('Failed to fetch radio stations (${response.statusCode})');
       }
-      final responseBody = utf8.decode(
-        response.bodyBytes,
-        allowMalformed: true,
-      );
+      final Uint8List bytes = response.bodyBytes;
       final dtos = await Isolate.run(() {
-        final decoded = jsonDecode(responseBody);
+        final text = utf8.decode(bytes, allowMalformed: true);
+        final decoded = jsonDecode(text);
         final List<dynamic> jsonList;
         if (decoded is List) {
           jsonList = decoded;
@@ -89,12 +87,10 @@ class HomeApi {
       if (response.statusCode != 200) {
         return ApiError('Failed to fetch podcasts (${response.statusCode})');
       }
-      final responseBody = utf8.decode(
-        response.bodyBytes,
-        allowMalformed: true,
-      );
+      final Uint8List bytes = response.bodyBytes;
       final dtos = await Isolate.run(() {
-        final decoded = jsonDecode(responseBody);
+        final text = utf8.decode(bytes, allowMalformed: true);
+        final decoded = jsonDecode(text);
         final List<dynamic> jsonList;
         if (decoded is Map<String, dynamic>) {
           jsonList = decoded['results'] as List<dynamic>? ?? [];

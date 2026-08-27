@@ -410,6 +410,18 @@ abstract class AppLocalizations {
   /// **'Tap below to reconnect or switch feed'**
   String get reconnectPrompt;
 
+  /// No description provided for @tryNextFeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Try Next Feed'**
+  String get tryNextFeed;
+
+  /// No description provided for @switchingToNextFeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Stream interrupted. Trying next available feed...'**
+  String get switchingToNextFeed;
+
   /// No description provided for @streamUnavailable.
   ///
   /// In en, this message translates to:
@@ -637,6 +649,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please check your network connection and try again.'**
   String get noInternetPrompt;
+
+  /// No description provided for @downloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get downloads;
+
+  /// No description provided for @goToDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Downloads'**
+  String get goToDownloads;
+
+  /// No description provided for @noDownloadsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No Downloaded Episodes'**
+  String get noDownloadsYet;
+
+  /// No description provided for @noDownloadsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded podcast episodes will appear here for offline listening.'**
+  String get noDownloadsDescription;
+
+  /// No description provided for @downloadedEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded Episodes'**
+  String get downloadedEpisodes;
+
+  /// No description provided for @deleteDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Download'**
+  String get deleteDownload;
+
+  /// No description provided for @deleteDownloadConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this downloaded episode from your device?'**
+  String get deleteDownloadConfirmation;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @storageUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage Used'**
+  String get storageUsed;
+
+  /// No description provided for @playOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Play Offline'**
+  String get playOffline;
+
+  /// No description provided for @searchDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Search downloads...'**
+  String get searchDownloads;
 }
 
 class _AppLocalizationsDelegate

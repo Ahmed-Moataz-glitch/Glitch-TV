@@ -18,6 +18,8 @@ class ChannelInfoHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final channel = item.channel;
     final logoUrl = item.logoUrl;
     final category =
@@ -25,7 +27,7 @@ class ChannelInfoHeader extends StatelessWidget {
     final l10n = context.l10n;
 
     return Container(
-      width: double.infinity,
+      width: size.width,
       padding: EdgeInsets.all(20.r),
       decoration: BoxDecoration(
         color: context.cardBg,
@@ -52,7 +54,7 @@ class ChannelInfoHeader extends StatelessWidget {
             height: 100.h,
             padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
-              color: context.isDark ? AppColors.textSecondary.withAlpha(150) : AppColors.textSecondaryLight.withAlpha(50),
+              color: context.isDark ? AppColors.textSecondary.withAlpha(180) : AppColors.textSecondaryLight.withAlpha(50),
               shape: BoxShape.rectangle,
               borderRadius: BorderRadius.circular(16.r),
               border: Border.all(
@@ -60,26 +62,24 @@ class ChannelInfoHeader extends StatelessWidget {
                 color: AppColors.primaryLight.withAlpha(80),
                 width: 4.sp,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withAlpha(40),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                ),
-              ],
             ),
             child: Center(
               child: logoUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: logoUrl,
+                      memCacheWidth: (100 * devicePixelRatio).toInt(),
+                      memCacheHeight: (100 * devicePixelRatio).toInt(),
                       fit: BoxFit.contain,
+                      alignment: Alignment.center,
                       placeholder: (context, url) => Shimmer.fromColors(
                         baseColor: context.cardBg,
                         highlightColor: AppColors.primary.withAlpha(40),
                         child: Container(
+                          width: double.infinity,
+                          height: double.infinity,
                           decoration: BoxDecoration(
                             color: context.cardBg,
-                            shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(12.r),
                           ),
                         ),
                       ),

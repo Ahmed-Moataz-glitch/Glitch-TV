@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_radio_player/flutter_radio_player.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_theme.dart';
+import 'package:glitch_tv/core/utils/app_toast.dart';
 import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:toastification/toastification.dart';
 
 class RadioPlayerPage extends StatefulWidget {
   final RadioStationEntity station;
@@ -23,7 +27,7 @@ class RadioPlayerPage extends StatefulWidget {
 
 class _RadioPlayerPageState extends State<RadioPlayerPage>
     with SingleTickerProviderStateMixin {
-  static final FlutterRadioPlayer _player = FlutterRadioPlayer();
+  late final AudioPlayer _player;
   late int _currentIndex;
   late List<RadioStationEntity> _playlist;
 
@@ -33,13 +37,15 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
   bool _isMuted = false;
   String _nowPlayingMetadata = '';
 
-  StreamSubscription<bool>? _isPlayingSub;
-  StreamSubscription<NowPlayingInfo>? _nowPlayingSub;
+  StreamSubscription<PlayerState>? _playerStateSub;
+  StreamSubscription<int?>? _currentIndexSub;
+  StreamSubscription<IcyMetadata?>? _icyMetadataSub;
   late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
+    _player = AudioPlayer();
 
     _pulseController = AnimationController(
       vsync: this,
@@ -58,27 +64,60 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
     _initRadioPlayer();
   }
 
-  Future<void> _initRadioPlayer() async {
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-      });
+  AudioSource _createAudioSource(RadioStationEntity station) {
+    final streamUrl = station.streamUrl.isNotEmpty
+        ? station.streamUrl
+        : 'http://stream.zeno.fm/f3wvbbqmdg8uv';
+
+    Uri? artUri;
+    if (station.favicon.isNotEmpty) {
+      artUri = Uri.tryParse(station.favicon);
     }
 
-    _isPlayingSub?.cancel();
-    _isPlayingSub = _player.isPlayingStream.listen((isPlaying) {
+    return AudioSource.uri(
+      Uri.parse(streamUrl),
+      tag: MediaItem(
+        id: station.id.isNotEmpty ? station.id : streamUrl,
+        album: station.country.isNotEmpty ? station.country : 'Egypt Live Radio',
+        title: station.name,
+        artist: station.tags.isNotEmpty ? station.tags : 'Glitch TV Live Radio',
+        artUri: artUri,
+      ),
+      headers: const {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Icy-MetaData': '1',
+      },
+    );
+  }
+
+  void _initRadioPlayer() {
+    _playerStateSub = _player.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
-          _isPlaying = isPlaying;
-          _isLoading = false;
+          _isPlaying = state.playing;
+          _isLoading = (state.processingState == ProcessingState.loading ||
+                  state.processingState == ProcessingState.buffering) &&
+              !state.playing;
         });
       }
     });
 
-    _nowPlayingSub?.cancel();
-    _nowPlayingSub = _player.nowPlayingStream.listen((info) {
+    _currentIndexSub = _player.currentIndexStream.listen((index) {
+      if (index != null && index >= 0 && index < _playlist.length && mounted) {
+        if (_currentIndex != index) {
+          setState(() {
+            _currentIndex = index;
+            _nowPlayingMetadata = '';
+          });
+        }
+      }
+    });
+
+    _icyMetadataSub = _player.icyMetadataStream.listen((metadata) {
       if (mounted) {
-        final title = info.title?.trim() ?? '';
+        final title = metadata?.info?.title?.trim() ?? '';
         if (title.isNotEmpty) {
           setState(() {
             _nowPlayingMetadata = title;
@@ -87,28 +126,35 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
       }
     });
 
+    _loadAndPlay();
+  }
+
+  Future<void> _loadAndPlay() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _nowPlayingMetadata = '';
+      });
+    }
+
     try {
-      final List<RadioSource> sources = _playlist
-          .map(
-            (s) => RadioSource(
-              url: s.streamUrl.isNotEmpty
-                  ? s.streamUrl
-                  : 'http://stream.zeno.fm/f3wvbbqmdg8uv',
-              title: s.name,
-              artwork: s.favicon.isNotEmpty ? s.favicon : null,
-            ),
-          )
-          .toList();
-
-      await _player.initialize(sources, playWhenReady: true);
-
-      if (_currentIndex > 0 && _currentIndex < sources.length) {
-        await _player.jumpToSourceAtIndex(_currentIndex);
-      }
-
+      final sources = _playlist.map(_createAudioSource).toList();
+      await _player.setAudioSources(
+        sources,
+        initialIndex: _currentIndex,
+        initialPosition: Duration.zero,
+      );
       await _player.play();
     } catch (e) {
-      debugPrint('Radio init warning: $e');
+      debugPrint('Radio playback error: $e');
+      if (mounted) {
+        AppToast.showToast(
+          context: context,
+          title: context.l10n?.error ?? 'Playback Error',
+          description: 'Failed to play radio stream.',
+          type: ToastificationType.error,
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -121,62 +167,77 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
   @override
   void dispose() {
     _pulseController.dispose();
-    _isPlayingSub?.cancel();
-    _nowPlayingSub?.cancel();
-    _player.pause();
+    _playerStateSub?.cancel();
+    _currentIndexSub?.cancel();
+    _icyMetadataSub?.cancel();
+    _player.stop();
+    _player.dispose();
     super.dispose();
   }
 
   RadioStationEntity get _currentStation => _playlist[_currentIndex];
 
   Future<void> _playOrPause() async {
-    if (_isPlaying) {
-      await _player.pause();
-    } else {
-      await _player.play();
+    try {
+      if (_player.playing) {
+        await _player.pause();
+      } else {
+        if (_player.processingState == ProcessingState.idle) {
+          await _loadAndPlay();
+        } else {
+          await _player.play();
+        }
+      }
+    } catch (e) {
+      debugPrint('Play/Pause error: $e');
     }
   }
 
   Future<void> _playNext() async {
-    if (_currentIndex < _playlist.length - 1) {
-      setState(() {
-        _currentIndex++;
-        _isLoading = true;
-        _nowPlayingMetadata = '';
-      });
-      await _player.jumpToSourceAtIndex(_currentIndex);
-      await _player.play();
+    try {
+      if (_player.hasNext) {
+        await _player.seekToNext();
+      } else if (_currentIndex < _playlist.length - 1) {
+        await _player.seek(Duration.zero, index: _currentIndex + 1);
+      }
+    } catch (e) {
+      debugPrint('Error seeking to next station: $e');
     }
   }
 
   Future<void> _playPrevious() async {
-    if (_currentIndex > 0) {
-      setState(() {
-        _currentIndex--;
-        _isLoading = true;
-        _nowPlayingMetadata = '';
-      });
-      await _player.jumpToSourceAtIndex(_currentIndex);
-      await _player.play();
+    try {
+      if (_player.hasPrevious) {
+        await _player.seekToPrevious();
+      } else if (_currentIndex > 0) {
+        await _player.seek(Duration.zero, index: _currentIndex - 1);
+      }
+    } catch (e) {
+      debugPrint('Error seeking to previous station: $e');
     }
   }
 
   void _showVolumeDialog() {
-    double currentVol = _volume;
     showDialog(
       context: context,
-      builder: (BuildContext dialogContext) {
+      builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final currentVol = _isMuted ? 0.0 : _volume;
             return AlertDialog(
               backgroundColor: context.cardBg,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20.r),
+                side: BorderSide(
+                  color: context.isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : Colors.black.withValues(alpha: 0.1),
+                ),
               ),
               title: Row(
                 children: [
                   Icon(
-                    currentVol == 0
+                    currentVol == 0.0
                         ? Icons.volume_off_rounded
                         : Icons.volume_up_rounded,
                     color: AppColors.primaryLight,
@@ -257,12 +318,12 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: Text(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
                     'Done',
                     style: TextStyle(
-                      color: AppColors.primaryLight,
-                      fontSize: 14.sp,
+                      color: AppColors.primary,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -309,6 +370,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
 
   @override
   Widget build(BuildContext context) {
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final size = MediaQuery.of(context).size;
     final l10n = context.l10n;
 
@@ -428,22 +490,23 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
                           ),
                         ],
                       ),
-                      child: ClipOval(
-                        child: _currentStation.favicon.isNotEmpty
-                            ? Image.network(
-                                _currentStation.favicon,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(
-                                  Icons.radio_rounded,
-                                  color: AppColors.primaryLight,
-                                  size: 80.sp,
-                                ),
-                              )
-                            : Icon(
-                                Icons.radio_rounded,
-                                color: AppColors.primaryLight,
-                                size: 80.sp,
-                              ),
+                      child: Container(
+                        padding: EdgeInsets.all(16.r),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(100.r),
+                          child: _currentStation.favicon.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: _currentStation.favicon,
+                                  memCacheWidth: (200 * devicePixelRatio).toInt(),
+                                  memCacheHeight: (200 * devicePixelRatio).toInt(),
+                                  fit: BoxFit.fill,
+                                  placeholder: (_, __) =>
+                                      _buildFallbackStationIcon(),
+                                  errorWidget: (_, __, ___) =>
+                                      _buildFallbackStationIcon(),
+                                )
+                              : _buildFallbackStationIcon(),
+                        ),
                       ),
                     ),
                   );
@@ -560,6 +623,53 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
             ),
             SizedBox(height: 64.h),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackStationIcon() {
+    final name = _currentStation.name.toLowerCase();
+    final tags = _currentStation.tags.toLowerCase();
+    final combined = '$name $tags';
+
+    final IconData iconData;
+    if (combined.contains('قرآن') ||
+        combined.contains('قران') ||
+        combined.contains('quran') ||
+        combined.contains('islam') ||
+        combined.contains('إسلام')) {
+      iconData = Icons.auto_stories_rounded;
+    } else if (combined.contains('music') ||
+        combined.contains('موسيقى') ||
+        combined.contains('أغاني') ||
+        combined.contains('اغاني') ||
+        combined.contains('tarab') ||
+        combined.contains('طرب')) {
+      iconData = Icons.music_note_rounded;
+    } else if (combined.contains('news') ||
+        combined.contains('أخبار') ||
+        combined.contains('اخبار')) {
+      iconData = Icons.newspaper_rounded;
+    } else {
+      iconData = Icons.radio_rounded;
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            AppColors.primary.withAlpha(40),
+            AppColors.primary.withAlpha(15),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          iconData,
+          color: AppColors.primaryLight,
+          size: 72.sp,
         ),
       ),
     );

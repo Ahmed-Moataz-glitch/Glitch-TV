@@ -4,9 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_constants.dart';
+import 'package:glitch_tv/core/utils/app_router.dart';
 import 'package:glitch_tv/l10n/app_localizations.dart';
 import 'package:glitch_tv/features/settings/presentation/view_model/settings_cubit.dart';
 import 'package:glitch_tv/features/settings/presentation/view_model/settings_state.dart';
+import 'package:go_router/go_router.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -61,85 +63,107 @@ class _SettingsPageState extends State<SettingsPage> {
       body: SafeArea(
         child: BlocBuilder<SettingsCubit, SettingsState>(
           builder: (context, state) {
-            return ListView(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-              children: [
-                // Appearance Section
-                _buildSectionHeader(
-                  title: l10n?.appearance ?? 'Appearance',
-                  icon: Icons.palette_outlined,
-                  textPrimary: textPrimary,
-                ),
-                SizedBox(height: 12.h),
+            return SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                child: Column(
+                  children: [
+                    // Appearance Section
+                    _buildSectionHeader(
+                      title: l10n?.appearance ?? 'Appearance',
+                      icon: Icons.palette_outlined,
+                      textPrimary: textPrimary,
+                    ),
+                    SizedBox(height: 12.h),
+                
+                    // Theme Mode Selector Segment
+                    _buildThemeModeSelector(
+                      context: context,
+                      currentMode: state.themeMode,
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      l10n: l10n,
+                    ),
+                    SizedBox(height: 16.h),
+                    // Language Section
+                    _buildSectionHeader(
+                      title: l10n?.language ?? 'Language',
+                      icon: Icons.language_rounded,
+                      textPrimary: textPrimary,
+                    ),
+                    SizedBox(height: 12.h),
+                    // Language Dropdown Menu Widget
+                    _buildLanguageDropdown(
+                      context: context,
+                      currentLocale: state.locale,
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      l10n: l10n,
+                    ),
+                
+                    SizedBox(height: 16.h),
 
-                // Theme Mode Selector Segment
-                _buildThemeModeSelector(
-                  context: context,
-                  currentMode: state.themeMode,
-                  isDark: isDark,
-                  cardBg: cardBg,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  l10n: l10n,
-                ),
-                SizedBox(height: 16.h),
-                // Language Section
-                _buildSectionHeader(
-                  title: l10n?.language ?? 'Language',
-                  icon: Icons.language_rounded,
-                  textPrimary: textPrimary,
-                ),
-                SizedBox(height: 12.h),
-                // Language Dropdown Menu Widget
-                _buildLanguageDropdown(
-                  context: context,
-                  currentLocale: state.locale,
-                  isDark: isDark,
-                  cardBg: cardBg,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  l10n: l10n,
-                ),
+                    // Downloads Section
+                    _buildSectionHeader(
+                      title: l10n?.downloads ?? 'Downloads',
+                      icon: Icons.download_for_offline_outlined,
+                      textPrimary: textPrimary,
+                    ),
+                    SizedBox(height: 12.h),
+                    _buildDownloadsCard(
+                      context: context,
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      l10n: l10n,
+                    ),
 
-                SizedBox(height: 16.h),
+                    SizedBox(height: 16.h),
 
-                // About Section
-                _buildSectionHeader(
-                  title: l10n?.about ?? 'About',
-                  icon: Icons.info_outline_rounded,
-                  textPrimary: textPrimary,
-                ),
-                SizedBox(height: 12.h),
-                _buildAboutCard(
-                  isDark: isDark,
-                  cardBg: cardBg,
-                  textPrimary: textPrimary,
-                  textSecondary: textSecondary,
-                  l10n: l10n,
-                ),
-                SizedBox(height: 24.h),
-                Align(
-                  alignment: Alignment.center,
-                  child: AnimatedTextKit(
-                    controller: _animatedTextController,
-                    animatedTexts: [
-                      ColorizeAnimatedText(
-                        'DEVELOPED BY AHMED GLITCH',
-                        textStyle: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        colors: [
-                          AppColors.primary,
-                          AppColors.primaryLight,
-                          AppColors.textSecondary,
+                    // About Section
+                    _buildSectionHeader(
+                      title: l10n?.about ?? 'About',
+                      icon: Icons.info_outline_rounded,
+                      textPrimary: textPrimary,
+                    ),
+                    SizedBox(height: 12.h),
+                    _buildAboutCard(
+                      isDark: isDark,
+                      cardBg: cardBg,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      l10n: l10n,
+                    ),
+                    SizedBox(height: 24.h),
+                    Align(
+                      alignment: Alignment.center,
+                      child: AnimatedTextKit(
+                        controller: _animatedTextController,
+                        animatedTexts: [
+                          ColorizeAnimatedText(
+                            'DEVELOPED BY AHMED GLITCH',
+                            textStyle: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                            colors: [
+                              AppColors.primary,
+                              AppColors.primaryLight,
+                              AppColors.textSecondary,
+                            ],
+                          ),
                         ],
+                        repeatForever: true,
                       ),
-                    ],
-                    repeatForever: true,
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             );
           },
         ),
@@ -540,6 +564,87 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDownloadsCard({
+    required BuildContext context,
+    required bool isDark,
+    required Color cardBg,
+    required Color textPrimary,
+    required Color textSecondary,
+    required AppLocalizations? l10n,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.06),
+          width: 1.0,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16.r),
+        child: InkWell(
+          onTap: () {
+            context.push(AppRouter.downloadsPath);
+          },
+          borderRadius: BorderRadius.circular(16.r),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+            child: Row(
+              children: [
+                Container(
+                  width: 42.r,
+                  height: 42.r,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(
+                    Icons.offline_pin_rounded,
+                    color: AppColors.primaryLight,
+                    size: 22.sp,
+                  ),
+                ),
+                SizedBox(width: 14.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n?.downloads ?? 'Downloads',
+                        style: TextStyle(
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.w600,
+                          color: textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        l10n?.downloadedEpisodes ?? 'Downloaded podcast episodes for offline listening',
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          color: textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: AppColors.primaryLight,
+                  size: 16.sp,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

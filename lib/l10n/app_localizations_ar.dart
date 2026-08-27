@@ -166,6 +166,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get reconnectPrompt => 'اضغط أدناه لإعادة الاتصال أو تبديل السيرفر';
 
   @override
+  String get tryNextFeed => 'تجربة السيرفر التالي';
+
+  @override
+  String get switchingToNextFeed => 'انقطع البث. جاري تجربة سيرفر بديل...';
+
+  @override
   String get streamUnavailable => 'البث غير متاح';
 
   @override
@@ -284,4 +290,42 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get noInternetPrompt =>
       'يرجى التحقق من اتصالك بالشبكة والمحاولة مرة أخرى.';
+
+  @override
+  String get downloads => 'التنزيلات';
+
+  @override
+  String get goToDownloads => 'الذهاب إلى التنزيلات';
+
+  @override
+  String get noDownloadsYet => 'لا توجد حلقات مُنزلة';
+
+  @override
+  String get noDownloadsDescription =>
+      'ستظهر حلقات البودكاست المُنزلة هنا للاستماع إليها بدون إنترنت.';
+
+  @override
+  String get downloadedEpisodes => 'الحلقات المُنزلة';
+
+  @override
+  String get deleteDownload => 'حذف التنزيل';
+
+  @override
+  String get deleteDownloadConfirmation =>
+      'هل أنت متأكد من حذف هذه الحلقة المُنزلة من جهازك؟';
+
+  @override
+  String get cancel => 'إلغاء';
+
+  @override
+  String get delete => 'حذف';
+
+  @override
+  String get storageUsed => 'المساحة المستخدمة';
+
+  @override
+  String get playOffline => 'تشغيل بدون إنترنت';
+
+  @override
+  String get searchDownloads => 'البحث في التنزيلات...';
 }

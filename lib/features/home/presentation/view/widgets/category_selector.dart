@@ -51,6 +51,7 @@ class CategorySelector extends StatelessWidget {
     return SizedBox(
       height: 38.h,
       child: ListView.separated(
+        physics: const ClampingScrollPhysics(),
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
         separatorBuilder: (context, index) => SizedBox(width: 10.w),

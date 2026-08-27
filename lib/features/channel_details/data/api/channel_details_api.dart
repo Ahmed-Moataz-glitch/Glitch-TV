@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:glitch_tv/core/utils/api_result.dart';
 import 'package:glitch_tv/core/utils/app_api.dart';
 import 'package:glitch_tv/features/channel_details/data/models/channel_stream_dto.dart';
@@ -40,20 +41,16 @@ class ChannelDetailsApi {
         return ApiError('Failed to fetch EPG guide (${response.statusCode})');
       }
 
-      final responseBody = utf8.decode(response.bodyBytes, allowMalformed: true);
-
-      // Detect Open-EPG daily rate limit HTML response
-      if (responseBody.contains('reached the download limit') ||
-          responseBody.contains('download limit for this file')) {
-        if (_cachedEpg != null && _cachedEpg!.isNotEmpty) {
-          return ApiSuccess(_cachedEpg!);
-        }
-        return ApiError(
-            'Reached daily EPG download limit (30 requests/day). Please try again tomorrow.');
-      }
+      final Uint8List bytes = response.bodyBytes;
+      final allowedSet = channels.map((e) => e.toLowerCase()).toSet();
 
       final dtos = await Isolate.run(() {
-        return parseXmlContent(responseBody);
+        final text = utf8.decode(bytes, allowMalformed: true);
+        if (text.contains('reached the download limit') ||
+            text.contains('download limit for this file')) {
+          return <EpgProgrammeDto>[];
+        }
+        return parseXmlContent(text, allowedChannels: allowedSet);
       });
 
       if (dtos.isNotEmpty) {
@@ -87,10 +84,11 @@ class ChannelDetailsApi {
         return ApiError('Failed to fetch streams (${response.statusCode})');
       }
 
-      final responseBody = utf8.decode(response.bodyBytes, allowMalformed: true);
+      final Uint8List bytes = response.bodyBytes;
       final allowedSet = channels.toSet();
       final dtos = await Isolate.run(() {
-        final jsonList = jsonDecode(responseBody) as List<dynamic>;
+        final text = utf8.decode(bytes, allowMalformed: true);
+        final jsonList = jsonDecode(text) as List<dynamic>;
         return ChannelStreamDto.fromJsonList(jsonList, allowedChannelIds: allowedSet);
       });
 
@@ -104,16 +102,25 @@ class ChannelDetailsApi {
     }
   }
 
-  static List<EpgProgrammeDto> parseXmlContent(String rawXml) {
+  static List<EpgProgrammeDto> parseXmlContent(
+    String rawXml, {
+    Set<String>? allowedChannels,
+  }) {
     final cleanXml = _sanitizeXml(rawXml);
     try {
       final document = XmlDocument.parse(cleanXml);
       final programmeElements = document.findAllElements('programme');
-      return programmeElements
-          .map((element) => EpgProgrammeDto.fromXmlElement(element))
-          .toList();
+      final List<EpgProgrammeDto> list = [];
+      for (final element in programmeElements) {
+        final channel = element.getAttribute('channel')?.trim() ?? '';
+        if (allowedChannels != null && !allowedChannels.contains(channel.toLowerCase())) {
+          continue;
+        }
+        list.add(EpgProgrammeDto.fromXmlElement(element));
+      }
+      return list;
     } catch (_) {
-      return _parseWithRegExp(rawXml);
+      return _parseWithRegExp(rawXml, allowedChannels: allowedChannels);
     }
   }
 
@@ -140,7 +147,10 @@ class ChannelDetailsApi {
     return xml;
   }
 
-  static List<EpgProgrammeDto> _parseWithRegExp(String xml) {
+  static List<EpgProgrammeDto> _parseWithRegExp(
+    String xml, {
+    Set<String>? allowedChannels,
+  }) {
     final programmeRegex = RegExp(
       r'<programme\s+([^>]*)\bchannel="([^"]+)"([^>]*)>(.*?)</programme>',
       dotAll: true,
@@ -154,8 +164,11 @@ class ChannelDetailsApi {
     final List<EpgProgrammeDto> list = [];
 
     for (final match in programmeRegex.allMatches(xml)) {
+      final channel = (match.group(2) ?? '').trim();
+      if (allowedChannels != null && !allowedChannels.contains(channel.toLowerCase())) {
+        continue;
+      }
       final attrText = '${match.group(1)} ${match.group(3)}';
-      final channel = match.group(2) ?? '';
       final body = match.group(4) ?? '';
 
       final startMatch = startRegex.firstMatch(attrText);

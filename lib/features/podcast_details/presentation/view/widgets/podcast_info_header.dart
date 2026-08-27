@@ -17,6 +17,7 @@ class PodcastInfoHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final l10n = context.l10n;
 
     return Container(
@@ -60,7 +61,9 @@ class PodcastInfoHeader extends StatelessWidget {
                   child: podcast.artworkUrl.isNotEmpty
                       ? CachedNetworkImage(
                           imageUrl: podcast.artworkUrl,
-                          fit: BoxFit.cover,
+                          memCacheWidth: (100 * devicePixelRatio).toInt(),
+                          memCacheHeight: (300 * devicePixelRatio).toInt(),
+                          fit: BoxFit.fill,
                           placeholder: (_, __) => Center(
                             child: SizedBox(
                               width: 24.w,
@@ -126,7 +129,9 @@ class PodcastInfoHeader extends StatelessWidget {
                               vertical: 3.h,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withAlpha(context.isDark ? 30 : 20),
+                              color: AppColors.primary.withAlpha(
+                                context.isDark ? 30 : 20,
+                              ),
                               borderRadius: BorderRadius.circular(6.r),
                             ),
                             child: Text(
