@@ -43,14 +43,14 @@ class HomeCubit extends Cubit<HomeState> {
     return super.close();
   }
 
-  Future<void> loadData() async {
+  Future<void> loadData({bool forceRefresh = false}) async {
     emit(HomeLoading());
     try {
       final results = await Future.wait([
-        fetchLogosUseCase.call(),
-        fetchChannelsUseCase.call(),
-        fetchRadioStationsUseCase.call(),
-        fetchPodcastsUseCase.call(),
+        fetchLogosUseCase.call(forceRefresh: forceRefresh),
+        fetchChannelsUseCase.call(forceRefresh: forceRefresh),
+        fetchRadioStationsUseCase.call(forceRefresh: forceRefresh),
+        fetchPodcastsUseCase.call(forceRefresh: forceRefresh),
       ]);
 
       final logosResult = results[0] as ApiResult<List<LogosResponseEntity>>;
@@ -154,7 +154,7 @@ class HomeCubit extends Cubit<HomeState> {
       _applyFilters();
 
       // Pre-warm channel streams cache in background for instant playback across the app
-      ChannelDetailsApi().fetchStreams();
+      ChannelDetailsApi().fetchStreams(forceRefresh: forceRefresh);
     } catch (e) {
       emit(HomeError('Failed to load channels: ${e.toString()}'));
     }

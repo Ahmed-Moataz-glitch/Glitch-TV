@@ -50,7 +50,7 @@ class ChannelInfoHeader extends StatelessWidget {
         children: [
           // Logo Avatar
           Container(
-            width: 100.w,
+            width: 120.w,
             height: 100.h,
             padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(

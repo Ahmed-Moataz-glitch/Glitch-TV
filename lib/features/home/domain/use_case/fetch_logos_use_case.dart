@@ -6,7 +6,7 @@ class FetchLogosUseCase {
   final HomeRepo _homeRepo;
   FetchLogosUseCase(this._homeRepo);
 
-  Future<ApiResult<List<LogosResponseEntity>>> call() {
-    return _homeRepo.fetchLogos();
+  Future<ApiResult<List<LogosResponseEntity>>> call({bool forceRefresh = false}) {
+    return _homeRepo.fetchLogos(forceRefresh: forceRefresh);
   }
 }

@@ -53,7 +53,10 @@ class ChannelStreamDto {
           }
 
           final channelId = (json['channel'] as String?)?.toLowerCase().trim();
-          return channelId != null && normalizedAllowed.contains(channelId);
+          if (channelId == null) return false;
+          if (normalizedAllowed.contains(channelId)) return true;
+          final prefix = channelId.split('.').first;
+          return normalizedAllowed.any((allowed) => allowed.split('.').first == prefix);
         })
         .map((json) => ChannelStreamDto.fromJson(json))
         .toList();

@@ -18,9 +18,13 @@ class RadioTabView extends StatefulWidget {
   State<RadioTabView> createState() => _RadioTabViewState();
 }
 
-class _RadioTabViewState extends State<RadioTabView> {
+class _RadioTabViewState extends State<RadioTabView>
+    with AutomaticKeepAliveClientMixin {
   late final TextEditingController _radioSearchController;
   String _selectedRadioCategory = 'All';
+
+  @override
+  bool get wantKeepAlive => true;
   final List<String> _radioCategories = [
     'All',
     'Quran',
@@ -216,6 +220,7 @@ class _RadioTabViewState extends State<RadioTabView> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final l10n = context.l10n;
 
@@ -246,7 +251,9 @@ class _RadioTabViewState extends State<RadioTabView> {
 
             return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent: BouncingScrollPhysics(
+                  decelerationRate: ScrollDecelerationRate.fast,
+                ),
               ),
               slivers: [
                 SliverPadding(

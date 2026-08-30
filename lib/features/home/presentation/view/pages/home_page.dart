@@ -17,7 +17,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   late final HomeCubit _homeCubit;
   late final TabController _tabController;
 
@@ -43,120 +44,109 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: context.scaffoldBg,
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Top Header & TabBar
-              Padding(
-                padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
-                child: Column(
-                  children: [
-                    _buildTopHeader(),
-                    SizedBox(height: 20.h),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: context.cardBg,
-                        borderRadius: BorderRadius.circular(16.r),
-                        border: Border.all(
-                          color: context.isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.black.withValues(alpha: 0.06),
-                          width: 1.0,
-                        ),
-                      ),
-                      padding: EdgeInsets.all(4.r),
-                      child: TabBar(
-                        controller: _tabController,
-                        physics: const ClampingScrollPhysics(),
-                        indicator: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(12.r),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withAlpha(80),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        dividerColor: Colors.transparent,
-                        labelColor: Colors.white,
-                        unselectedLabelColor: context.textPrimary,
-                        labelStyle: TextStyle(
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        unselectedLabelStyle: TextStyle(
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        splashFactory: NoSplash.splashFactory,
-                        overlayColor:
-                            WidgetStateProperty.all(Colors.transparent),
-                        tabs: [
-                          Tab(
-                            height: 38.h,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.live_tv_rounded, size: 18),
-                                SizedBox(width: 6.w),
-                                Text(l10n?.tv ?? 'TV'),
-                              ],
-                            ),
-                          ),
-                          Tab(
-                            height: 38.h,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.radio_rounded, size: 18),
-                                SizedBox(width: 6.w),
-                                Text(l10n?.radio ?? 'Radio'),
-                              ],
-                            ),
-                          ),
-                          Tab(
-                            height: 38.h,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.podcasts_rounded, size: 18),
-                                SizedBox(width: 6.w),
-                                Text(l10n?.podcasts ?? 'Podcasts'),
-                              ],
-                            ),
-                          ),
-                        ],
+    return Scaffold(
+      backgroundColor: context.scaffoldBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top Header & TabBar
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
+              child: Column(
+                children: [
+                  _buildTopHeader(),
+                  SizedBox(height: 20.h),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: context.cardBg,
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(
+                        color: context.isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.06),
+                        width: 1.0,
                       ),
                     ),
-                  ],
-                ),
+                    padding: EdgeInsets.all(4.r),
+                    child: TabBar(
+                      controller: _tabController,
+                      physics: const ClampingScrollPhysics(),
+                      indicator: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      labelColor: Colors.white,
+                      unselectedLabelColor: context.textPrimary,
+                      labelStyle: TextStyle(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      unselectedLabelStyle: TextStyle(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      splashFactory: NoSplash.splashFactory,
+                      overlayColor: WidgetStateProperty.all(Colors.transparent),
+                      tabs: [
+                        Tab(
+                          height: 38.h,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.live_tv_rounded, size: 18),
+                              SizedBox(width: 6.w),
+                              Text(l10n?.tv ?? 'TV'),
+                            ],
+                          ),
+                        ),
+                        Tab(
+                          height: 38.h,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.radio_rounded, size: 18),
+                              SizedBox(width: 6.w),
+                              Text(l10n?.radio ?? 'Radio'),
+                            ],
+                          ),
+                        ),
+                        Tab(
+                          height: 38.h,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.podcasts_rounded, size: 18),
+                              SizedBox(width: 6.w),
+                              Text(l10n?.podcasts ?? 'Podcasts'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: 4.h),
-              // TabBarView Content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  physics: const ClampingScrollPhysics(),
-                  children: [
-                    TvTabView(homeCubit: _homeCubit),
-                    RadioTabView(homeCubit: _homeCubit),
-                    PodcastTabView(homeCubit: _homeCubit),
-                  ],
-                ),
+            ),
+            SizedBox(height: 4.h),
+            // TabBarView Content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                physics: const ClampingScrollPhysics(),
+                children: [
+                  TvTabView(homeCubit: _homeCubit),
+                  RadioTabView(homeCubit: _homeCubit),
+                  PodcastTabView(homeCubit: _homeCubit),
+                ],
               ),
-              SizedBox(height: 8.h),
-            ],
-          ),
+            ),
+            SizedBox(height: 8.h),
+          ],
         ),
       ),
     );

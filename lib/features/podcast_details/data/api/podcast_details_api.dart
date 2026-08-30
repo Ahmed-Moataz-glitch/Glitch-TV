@@ -1,49 +1,72 @@
 import 'dart:convert';
 import 'dart:isolate';
+import 'package:glitch_tv/core/services/api_cache_service.dart';
+import 'package:glitch_tv/core/services/app_http_client.dart';
 import 'package:glitch_tv/core/utils/api_result.dart';
 import 'package:glitch_tv/features/podcast_details/data/models/podcast_episode_dto.dart';
-import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 class PodcastDetailsApi {
   static final Map<String, List<PodcastEpisodeDto>> _cache = {};
+  static const Duration _episodesTtl = Duration(hours: 6);
 
   static void clearCache() {
     _cache.clear();
   }
+
+  String _cacheKey(String feedUrl) => 'podcast_feed_${feedUrl.trim().toLowerCase()}';
 
   Future<ApiResult<List<PodcastEpisodeDto>>> fetchEpisodes({
     required String feedUrl,
     String fallbackArtwork = '',
     bool forceRefresh = false,
   }) async {
-    if (feedUrl.trim().isEmpty) {
+    final cleanUrl = feedUrl.trim();
+    if (cleanUrl.isEmpty) {
       return ApiError('Podcast feed URL is missing');
     }
 
-    if (!forceRefresh && _cache.containsKey(feedUrl)) {
-      final cached = _cache[feedUrl];
+    if (!forceRefresh && _cache.containsKey(cleanUrl)) {
+      final cached = _cache[cleanUrl];
       if (cached != null && cached.isNotEmpty) {
         return ApiSuccess(cached);
       }
     }
 
+    final key = _cacheKey(cleanUrl);
+
+    if (!forceRefresh) {
+      final cachedXml = await ApiCacheService.instance.get(key, maxAge: _episodesTtl);
+      if (cachedXml != null && cachedXml.isNotEmpty) {
+        try {
+          final dtos = await Isolate.run(() {
+            final clean = _sanitizeXml(cachedXml);
+            final document = XmlDocument.parse(clean);
+            return PodcastEpisodeDto.fromXmlDocument(
+              document,
+              fallbackArtwork: fallbackArtwork,
+            );
+          });
+          if (dtos.isNotEmpty) {
+            _cache[cleanUrl] = dtos;
+            return ApiSuccess(dtos);
+          }
+        } catch (_) {}
+      }
+    }
+
     try {
-      final response = await http.get(
-        Uri.parse(feedUrl),
-        headers: const {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      final response = await AppHttpClient.client.get(
+        Uri.parse(cleanUrl),
+        headers: {
+          ...AppHttpClient.defaultHeaders,
           'Accept':
               'application/rss+xml, application/xml, text/xml, application/atom+xml, */*',
         },
       ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
-        if (_cache.containsKey(feedUrl) && _cache[feedUrl]!.isNotEmpty) {
-          return ApiSuccess(_cache[feedUrl]!);
-        }
-        return ApiError('Failed to fetch podcast feed (${response.statusCode})');
+        return await _fallbackEpisodes(cleanUrl, key, fallbackArtwork, 'Failed to fetch podcast feed (${response.statusCode})');
       }
 
       final responseBody = utf8.decode(
@@ -61,18 +84,43 @@ class PodcastDetailsApi {
       });
 
       if (dtos.isNotEmpty) {
-        _cache[feedUrl] = dtos;
-      } else if (_cache.containsKey(feedUrl) && _cache[feedUrl]!.isNotEmpty) {
-        return ApiSuccess(_cache[feedUrl]!);
+        _cache[cleanUrl] = dtos;
+        await ApiCacheService.instance.put(key, responseBody);
       }
 
       return ApiSuccess(dtos);
     } catch (e) {
-      if (_cache.containsKey(feedUrl) && _cache[feedUrl]!.isNotEmpty) {
-        return ApiSuccess(_cache[feedUrl]!);
-      }
-      return ApiError('Failed to load episodes: ${e.toString()}');
+      return await _fallbackEpisodes(cleanUrl, key, fallbackArtwork, 'Failed to load episodes: ${e.toString()}');
     }
+  }
+
+  Future<ApiResult<List<PodcastEpisodeDto>>> _fallbackEpisodes(
+    String feedUrl,
+    String key,
+    String fallbackArtwork,
+    String errorMsg,
+  ) async {
+    if (_cache.containsKey(feedUrl) && _cache[feedUrl]!.isNotEmpty) {
+      return ApiSuccess(_cache[feedUrl]!);
+    }
+    final fallback = await ApiCacheService.instance.getFallback(key);
+    if (fallback != null && fallback.isNotEmpty) {
+      try {
+        final dtos = await Isolate.run(() {
+          final cleanXml = _sanitizeXml(fallback);
+          final document = XmlDocument.parse(cleanXml);
+          return PodcastEpisodeDto.fromXmlDocument(
+            document,
+            fallbackArtwork: fallbackArtwork,
+          );
+        });
+        if (dtos.isNotEmpty) {
+          _cache[feedUrl] = dtos;
+          return ApiSuccess(dtos);
+        }
+      } catch (_) {}
+    }
+    return ApiError(errorMsg);
   }
 
   static String _sanitizeXml(String input) {

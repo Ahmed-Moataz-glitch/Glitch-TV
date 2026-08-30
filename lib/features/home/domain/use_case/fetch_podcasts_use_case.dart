@@ -6,7 +6,7 @@ class FetchPodcastsUseCase {
   final HomeRepo repo;
   FetchPodcastsUseCase(this.repo);
 
-  Future<ApiResult<List<PodcastEntity>>> call() async {
-    return await repo.fetchPodcasts();
+  Future<ApiResult<List<PodcastEntity>>> call({bool forceRefresh = false}) async {
+    return await repo.fetchPodcasts(forceRefresh: forceRefresh);
   }
 }

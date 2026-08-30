@@ -1,72 +1,99 @@
 import 'dart:convert';
 import 'dart:isolate';
-import 'dart:typed_data';
+import 'package:glitch_tv/core/services/api_cache_service.dart';
+import 'package:glitch_tv/core/services/app_http_client.dart';
 import 'package:glitch_tv/core/utils/api_result.dart';
 import 'package:glitch_tv/core/utils/app_api.dart';
 import 'package:glitch_tv/features/channel_details/data/models/channel_stream_dto.dart';
 import 'package:glitch_tv/features/channel_details/data/models/epg_programme_dto.dart';
 import 'package:glitch_tv/features/home/data/models/channels_model.dart';
-import 'package:http/http.dart' as http;
 import 'package:xml/xml.dart';
 
 class ChannelDetailsApi {
   static List<EpgProgrammeDto>? _cachedEpg;
-  static DateTime? _lastFetchTime;
   static List<ChannelStreamDto>? _cachedStreams;
+
+  static const String _epgCacheKey = 'channel_epg_cache';
+  static const String _streamsCacheKey = 'channel_streams_cache';
+
+  static const Duration _epgTtl = Duration(hours: 12);
+  static const Duration _streamsTtl = Duration(hours: 24);
 
   static void clearCache() {
     _cachedEpg = null;
-    _lastFetchTime = null;
     _cachedStreams = null;
   }
 
   Future<ApiResult<List<EpgProgrammeDto>>> fetchEpgGuide({bool forceRefresh = false}) async {
-    final now = DateTime.now();
-    if (!forceRefresh && _cachedEpg != null && _lastFetchTime != null) {
-      final isSameDay = _lastFetchTime!.year == now.year &&
-          _lastFetchTime!.month == now.month &&
-          _lastFetchTime!.day == now.day;
-      if (isSameDay) {
-        return ApiSuccess(_cachedEpg!);
+    if (!forceRefresh && _cachedEpg != null && _cachedEpg!.isNotEmpty) {
+      return ApiSuccess(_cachedEpg!);
+    }
+
+    final allowedSet = channels.map((e) => e.toLowerCase()).toSet();
+
+    if (!forceRefresh) {
+      final cachedXml = await ApiCacheService.instance.get(_epgCacheKey, maxAge: _epgTtl);
+      if (cachedXml != null && cachedXml.isNotEmpty) {
+        try {
+          final dtos = await Isolate.run(() {
+            return parseXmlContent(cachedXml, allowedChannels: allowedSet);
+          });
+          if (dtos.isNotEmpty) {
+            _cachedEpg = dtos;
+            return ApiSuccess(dtos);
+          }
+        } catch (_) {}
       }
     }
 
     final url = Uri.https(AppApi.epgBaseUrl, AppApi.epgGuideEndpoint);
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 25));
+      final response = await AppHttpClient.client
+          .get(url, headers: AppHttpClient.defaultHeaders)
+          .timeout(const Duration(seconds: 25));
+
       if (response.statusCode != 200) {
-        if (_cachedEpg != null && _cachedEpg!.isNotEmpty) {
-          return ApiSuccess(_cachedEpg!);
-        }
-        return ApiError('Failed to fetch EPG guide (${response.statusCode})');
+        return await _fallbackEpg(allowedSet, 'Failed to fetch EPG guide (${response.statusCode})');
       }
 
-      final Uint8List bytes = response.bodyBytes;
-      final allowedSet = channels.map((e) => e.toLowerCase()).toSet();
+      final text = utf8.decode(response.bodyBytes, allowMalformed: true);
+      if (text.contains('reached the download limit') ||
+          text.contains('download limit for this file')) {
+        return await _fallbackEpg(allowedSet, 'EPG rate limit reached');
+      }
 
       final dtos = await Isolate.run(() {
-        final text = utf8.decode(bytes, allowMalformed: true);
-        if (text.contains('reached the download limit') ||
-            text.contains('download limit for this file')) {
-          return <EpgProgrammeDto>[];
-        }
         return parseXmlContent(text, allowedChannels: allowedSet);
       });
 
       if (dtos.isNotEmpty) {
         _cachedEpg = dtos;
-        _lastFetchTime = DateTime.now();
-      } else if (_cachedEpg != null && _cachedEpg!.isNotEmpty) {
-        return ApiSuccess(_cachedEpg!);
+        await ApiCacheService.instance.put(_epgCacheKey, text);
       }
 
       return ApiSuccess(dtos);
     } catch (e) {
-      if (_cachedEpg != null && _cachedEpg!.isNotEmpty) {
-        return ApiSuccess(_cachedEpg!);
-      }
-      return ApiError('EPG network error: ${e.toString()}');
+      return await _fallbackEpg(allowedSet, 'EPG network error: ${e.toString()}');
     }
+  }
+
+  Future<ApiResult<List<EpgProgrammeDto>>> _fallbackEpg(Set<String> allowedSet, String errorMsg) async {
+    if (_cachedEpg != null && _cachedEpg!.isNotEmpty) {
+      return ApiSuccess(_cachedEpg!);
+    }
+    final fallback = await ApiCacheService.instance.getFallback(_epgCacheKey);
+    if (fallback != null && fallback.isNotEmpty) {
+      try {
+        final dtos = await Isolate.run(() {
+          return parseXmlContent(fallback, allowedChannels: allowedSet);
+        });
+        if (dtos.isNotEmpty) {
+          _cachedEpg = dtos;
+          return ApiSuccess(dtos);
+        }
+      } catch (_) {}
+    }
+    return ApiError(errorMsg);
   }
 
   Future<ApiResult<List<ChannelStreamDto>>> fetchStreams({bool forceRefresh = false}) async {
@@ -74,32 +101,69 @@ class ChannelDetailsApi {
       return ApiSuccess(_cachedStreams!);
     }
 
+    final allowedSet = channels.toSet();
+
+    if (!forceRefresh) {
+      final cachedJson = await ApiCacheService.instance.get(_streamsCacheKey, maxAge: _streamsTtl);
+      if (cachedJson != null && cachedJson.isNotEmpty) {
+        try {
+          final dtos = await Isolate.run(() {
+            final jsonList = jsonDecode(cachedJson) as List<dynamic>;
+            return ChannelStreamDto.fromJsonList(jsonList, allowedChannelIds: allowedSet);
+          });
+          if (dtos.isNotEmpty) {
+            _cachedStreams = dtos;
+            return ApiSuccess(dtos);
+          }
+        } catch (_) {}
+      }
+    }
+
     final url = Uri.https(AppApi.iptvBaseUrl, AppApi.streamsEndpoint);
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 15));
+      final response = await AppHttpClient.client
+          .get(url, headers: AppHttpClient.defaultHeaders)
+          .timeout(const Duration(seconds: 6));
+
       if (response.statusCode != 200) {
-        if (_cachedStreams != null && _cachedStreams!.isNotEmpty) {
-          return ApiSuccess(_cachedStreams!);
-        }
-        return ApiError('Failed to fetch streams (${response.statusCode})');
+        return await _fallbackStreams(allowedSet, 'Failed to fetch streams (${response.statusCode})');
       }
 
-      final Uint8List bytes = response.bodyBytes;
-      final allowedSet = channels.toSet();
+      final text = utf8.decode(response.bodyBytes, allowMalformed: true);
       final dtos = await Isolate.run(() {
-        final text = utf8.decode(bytes, allowMalformed: true);
         final jsonList = jsonDecode(text) as List<dynamic>;
         return ChannelStreamDto.fromJsonList(jsonList, allowedChannelIds: allowedSet);
       });
 
-      _cachedStreams = dtos;
+      if (dtos.isNotEmpty) {
+        _cachedStreams = dtos;
+        await ApiCacheService.instance.put(_streamsCacheKey, text);
+      }
+
       return ApiSuccess(dtos);
     } catch (e) {
-      if (_cachedStreams != null && _cachedStreams!.isNotEmpty) {
-        return ApiSuccess(_cachedStreams!);
-      }
-      return ApiError('Streams network error: ${e.toString()}');
+      return await _fallbackStreams(allowedSet, 'Streams network error: ${e.toString()}');
     }
+  }
+
+  Future<ApiResult<List<ChannelStreamDto>>> _fallbackStreams(Set<String> allowedSet, String errorMsg) async {
+    if (_cachedStreams != null && _cachedStreams!.isNotEmpty) {
+      return ApiSuccess(_cachedStreams!);
+    }
+    final fallback = await ApiCacheService.instance.getFallback(_streamsCacheKey);
+    if (fallback != null && fallback.isNotEmpty) {
+      try {
+        final dtos = await Isolate.run(() {
+          final jsonList = jsonDecode(fallback) as List<dynamic>;
+          return ChannelStreamDto.fromJsonList(jsonList, allowedChannelIds: allowedSet);
+        });
+        if (dtos.isNotEmpty) {
+          _cachedStreams = dtos;
+          return ApiSuccess(dtos);
+        }
+      } catch (_) {}
+    }
+    return ApiError(errorMsg);
   }
 
   static List<EpgProgrammeDto> parseXmlContent(

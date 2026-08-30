@@ -11,22 +11,22 @@ class HomeRepoImpl extends HomeRepo {
   HomeRepoImpl(this._homeDataSource);
 
   @override
-  Future<ApiResult<List<ChannelsResponseEntity>>> fetchChannels() async {
-    return await _homeDataSource.fetchChannels();
+  Future<ApiResult<List<ChannelsResponseEntity>>> fetchChannels({bool forceRefresh = false}) async {
+    return await _homeDataSource.fetchChannels(forceRefresh: forceRefresh);
   }
 
   @override
-  Future<ApiResult<List<LogosResponseEntity>>> fetchLogos() async {
-    return await _homeDataSource.fetchLogos();
+  Future<ApiResult<List<LogosResponseEntity>>> fetchLogos({bool forceRefresh = false}) async {
+    return await _homeDataSource.fetchLogos(forceRefresh: forceRefresh);
   }
 
   @override
-  Future<ApiResult<List<RadioStationEntity>>> fetchRadioStations() async {
-    return await _homeDataSource.fetchRadioStations();
+  Future<ApiResult<List<RadioStationEntity>>> fetchRadioStations({bool forceRefresh = false}) async {
+    return await _homeDataSource.fetchRadioStations(forceRefresh: forceRefresh);
   }
 
   @override
-  Future<ApiResult<List<PodcastEntity>>> fetchPodcasts() async {
-    return await _homeDataSource.fetchPodcasts();
+  Future<ApiResult<List<PodcastEntity>>> fetchPodcasts({bool forceRefresh = false}) async {
+    return await _homeDataSource.fetchPodcasts(forceRefresh: forceRefresh);
   }
 }

@@ -18,9 +18,14 @@ class PodcastTabView extends StatefulWidget {
   State<PodcastTabView> createState() => _PodcastTabViewState();
 }
 
-class _PodcastTabViewState extends State<PodcastTabView> {
+class _PodcastTabViewState extends State<PodcastTabView>
+    with AutomaticKeepAliveClientMixin {
   late final TextEditingController _podcastSearchController;
   String _selectedPodcastCategory = 'All';
+
+  @override
+  bool get wantKeepAlive => true;
+
   String _getLocalizedCategory(BuildContext context, String category) {
     final l10n = context.l10n;
     if (l10n == null) return category;
@@ -66,6 +71,7 @@ class _PodcastTabViewState extends State<PodcastTabView> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final l10n = context.l10n;
 
@@ -101,7 +107,9 @@ class _PodcastTabViewState extends State<PodcastTabView> {
 
             return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent: BouncingScrollPhysics(
+                  decelerationRate: ScrollDecelerationRate.fast,
+                ),
               ),
               slivers: [
                 SliverPadding(

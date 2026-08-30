@@ -127,6 +127,7 @@ class _MyAppState extends State<MyApp> {
                 darkTheme: AppTheme.darkTheme,
                 themeMode: settingsState.themeMode,
                 locale: settingsState.locale,
+                scrollBehavior: const AppScrollBehavior(),
                 supportedLocales: AppLocalizations.supportedLocales,
                 localizationsDelegates: AppLocalizations.localizationsDelegates,
                 routerConfig: AppRouter.router,

@@ -29,73 +29,85 @@ class ChannelDetailsDataSourceImpl extends ChannelDetailsDataSource {
     bool forceRefresh = false,
   }) async {
     final target = channelId.trim();
+    final lowerTarget = target.toLowerCase();
 
-    // 1. Check verifiedChannelStreams map first for tested direct HLS streams
-    VerifiedChannelStream? verified;
-    for (var key in verifiedChannelStreams.keys) {
-      if (key.toLowerCase().trim() == target.toLowerCase()) {
-        verified = verifiedChannelStreams[key];
+    // 1. Get verified working streams for this channel ID
+    final List<ChannelStreamEntity> verifiedEntities = [];
+    for (var entry in verifiedChannelStreams.entries) {
+      if (entry.key.toLowerCase().trim() == lowerTarget) {
+        for (var v in entry.value) {
+          verifiedEntities.add(
+            ChannelStreamEntity(
+              channelId: channelId,
+              title: v.title,
+              url: v.url,
+              quality: v.quality,
+              label: v.label ?? 'Direct Stream (HD)',
+              referrer: v.referrer,
+              userAgent: v.userAgent,
+            ),
+          );
+        }
         break;
       }
     }
 
-    final List<ChannelStreamEntity> verifiedEntities = [];
-    if (verified != null) {
-      verifiedEntities.add(
-        ChannelStreamEntity(
-          channelId: channelId,
-          title: verified.title,
-          url: verified.url,
-          quality: verified.quality,
-          label: 'Direct Stream (HD)',
-          referrer: verified.referrer,
-          userAgent: verified.userAgent,
-        ),
-      );
-    }
+    // 2. Fetch API streams for this channel
+    try {
+      final result = await _api.fetchStreams(forceRefresh: forceRefresh);
+      switch (result) {
+        case ApiSuccess<List<ChannelStreamDto>>():
+          final allStreams = result.data ?? [];
 
-    final result = await _api.fetchStreams(forceRefresh: forceRefresh);
-    switch (result) {
-      case ApiSuccess<List<ChannelStreamDto>>():
-        final lowerTarget = target.toLowerCase();
-
-        // 1. Strict exact channel ID match (e.g. "SpacetoonArabic.ae")
-        var matched = (result.data ?? [])
-            .where((s) => s.channel != null && s.channel!.toLowerCase().trim() == lowerTarget)
-            .toList();
-
-        // 2. Fallback if no exact channel ID match exists
-        if (matched.isEmpty) {
-          final prefix = lowerTarget.split('.').first;
-          matched = (result.data ?? [])
-              .where((s) =>
-                  (s.channel != null && s.channel!.toLowerCase().trim() == prefix) ||
-                  (s.title != null && s.title!.toLowerCase().trim() == lowerTarget))
+          // Exact and prefix matching
+          var matched = allStreams
+              .where((s) => s.channel != null && s.channel!.toLowerCase().trim() == lowerTarget)
               .toList();
-        }
 
-        final apiEntities = matched.map((s) => s.toEntity()).toList();
-
-        // Combine verified streams first, followed by deduplicated API streams
-        final List<ChannelStreamEntity> uniqueStreams = [...verifiedEntities];
-        final Set<String> seenUrls = verifiedEntities.map((e) => e.url.toLowerCase()).toSet();
-
-        for (var entity in apiEntities) {
-          final u = entity.url.toLowerCase().trim();
-          if (!seenUrls.contains(u)) {
-            seenUrls.add(u);
-            uniqueStreams.add(entity);
+          if (matched.isEmpty) {
+            final prefix = lowerTarget.split('.').first;
+            matched = allStreams
+                .where((s) =>
+                    (s.channel != null && s.channel!.toLowerCase().trim() == prefix) ||
+                    (s.title != null && s.title!.toLowerCase().trim() == lowerTarget))
+                .toList();
           }
-        }
 
-        return ApiSuccess<List<ChannelStreamEntity>>(
-          uniqueStreams.isNotEmpty ? uniqueStreams : verifiedEntities,
-        );
-      case ApiError<List<ChannelStreamDto>>():
-        if (verifiedEntities.isNotEmpty) {
-          return ApiSuccess<List<ChannelStreamEntity>>(verifiedEntities);
-        }
-        return ApiError<List<ChannelStreamEntity>>(result.message);
+          final apiEntities = matched.map((s) => s.toEntity()).toList();
+
+          // Merge verified streams first, then deduplicated API streams
+          final List<ChannelStreamEntity> combined = [...verifiedEntities];
+          final Set<String> seenUrls = verifiedEntities.map((e) => e.url.toLowerCase().trim()).toSet();
+
+          for (var entity in apiEntities) {
+            final u = entity.url.toLowerCase().trim();
+            if (!seenUrls.contains(u)) {
+              seenUrls.add(u);
+              combined.add(entity);
+            }
+          }
+
+          if (combined.isNotEmpty) {
+            return ApiSuccess<List<ChannelStreamEntity>>(combined);
+          }
+          break;
+
+        case ApiError<List<ChannelStreamDto>>():
+          if (verifiedEntities.isNotEmpty) {
+            return ApiSuccess<List<ChannelStreamEntity>>(verifiedEntities);
+          }
+          return ApiError<List<ChannelStreamEntity>>(result.message);
+      }
+    } catch (_) {
+      if (verifiedEntities.isNotEmpty) {
+        return ApiSuccess<List<ChannelStreamEntity>>(verifiedEntities);
+      }
     }
+
+    if (verifiedEntities.isNotEmpty) {
+      return ApiSuccess<List<ChannelStreamEntity>>(verifiedEntities);
+    }
+
+    return ApiError<List<ChannelStreamEntity>>('No active stream found for $channelId.');
   }
 }

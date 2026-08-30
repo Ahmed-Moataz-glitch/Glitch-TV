@@ -21,8 +21,12 @@ class TvTabView extends StatefulWidget {
   State<TvTabView> createState() => _TvTabViewState();
 }
 
-class _TvTabViewState extends State<TvTabView> {
+class _TvTabViewState extends State<TvTabView>
+    with AutomaticKeepAliveClientMixin {
   late final TextEditingController _tvSearchController;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -69,11 +73,12 @@ class _TvTabViewState extends State<TvTabView> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final l10n = context.l10n;
 
     return RefreshIndicator(
       onRefresh: () async {
-        await widget.homeCubit.loadData();
+        await widget.homeCubit.loadData(forceRefresh: true);
       },
       color: AppColors.primaryLight,
       backgroundColor: context.cardBg,
@@ -101,7 +106,9 @@ class _TvTabViewState extends State<TvTabView> {
           if (state is HomeSuccess) {
             return CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
+                parent: BouncingScrollPhysics(
+                  decelerationRate: ScrollDecelerationRate.fast,
+                ),
               ),
               slivers: [
                 SliverPadding(

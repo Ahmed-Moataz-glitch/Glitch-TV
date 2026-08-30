@@ -1,11 +1,28 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glitch_tv/core/utils/api_result.dart';
 import 'package:glitch_tv/features/home/data/api/home_api.dart';
 import 'package:glitch_tv/features/home/data/models/channels_model.dart';
 import 'package:glitch_tv/features/home/data/models/channels_response_dto.dart';
 import 'package:glitch_tv/features/home/data/models/logos_response_dto.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 void main() {
+  late Directory tempDir;
+
+  setUpAll(() async {
+    HttpOverrides.global = null;
+    tempDir = await Directory.systemTemp.createTemp('home_api_test_');
+    Hive.init(tempDir.path);
+  });
+
+  tearDownAll(() async {
+    await Hive.close();
+    if (tempDir.existsSync()) {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
+
   test('HomeApi fetchLogos returns valid data', () async {
     final api = HomeApi();
     final result = await api.fetchLogos();

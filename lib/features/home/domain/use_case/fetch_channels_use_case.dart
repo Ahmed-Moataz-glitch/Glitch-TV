@@ -6,7 +6,7 @@ class FetchChannelsUseCase {
   final HomeRepo _homeRepo;
   FetchChannelsUseCase(this._homeRepo);
 
-  Future<ApiResult<List<ChannelsResponseEntity>>> call() {
-    return _homeRepo.fetchChannels();
+  Future<ApiResult<List<ChannelsResponseEntity>>> call({bool forceRefresh = false}) {
+    return _homeRepo.fetchChannels(forceRefresh: forceRefresh);
   }
 }

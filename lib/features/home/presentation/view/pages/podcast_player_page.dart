@@ -673,8 +673,8 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     _playerStateSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
-    _audioPlayer.stop();
-    _audioPlayer.dispose();
+    // _audioPlayer.stop();
+    // _audioPlayer.dispose();
     super.dispose();
   }
 

@@ -22,7 +22,6 @@ class ChannelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
     final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
     final channel = item.channel;
     final logoUrl = item.logoUrl;
@@ -53,21 +52,23 @@ class ChannelCard extends StatelessWidget {
                   child: Stack(
                     children: [
                       Container(
-                        width: size.width,
-                        height: size.height,
+                        width: double.infinity,
+                        height: double.infinity,
                         decoration: BoxDecoration(
                           color: context.isDark
                               ? AppColors.textSecondary.withAlpha(60)
                               : AppColors.textSecondaryLight.withAlpha(30),
                           borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
                         ),
-                        padding: EdgeInsets.all(14.r),
+                        padding: EdgeInsets.all(12.r),
                         child: Center(
                           child: logoUrl.isNotEmpty
                               ? CachedNetworkImage(
                                   imageUrl: logoUrl,
-                                  maxWidthDiskCache: (size.width * devicePixelRatio).toInt(),
-                                  maxHeightDiskCache: (size.height * devicePixelRatio).toInt(),
+                                  memCacheWidth: (120 * devicePixelRatio).round(),
+                                  memCacheHeight: (100 * devicePixelRatio).round(),
+                                  maxWidthDiskCache: 250,
+                                  maxHeightDiskCache: 250,
                                   fit: BoxFit.contain,
                                   alignment: Alignment.center,
                                   placeholder: (context, url) =>
@@ -76,8 +77,6 @@ class ChannelCard extends StatelessWidget {
                                     highlightColor:
                                         AppColors.primary.withAlpha(40),
                                     child: Container(
-                                      width: size.width,
-                                      height: size.height,
                                       color: context.cardBg,
                                     ),
                                   ),

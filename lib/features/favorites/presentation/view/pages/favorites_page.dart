@@ -62,12 +62,16 @@ class _FavoritesPageState extends State<FavoritesPage> {
               }
             },
             builder: (context, state) {
-              return SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
+              return CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(
+                    decelerationRate: ScrollDecelerationRate.fast,
+                  ),
+                ),
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+                    sliver: SliverToBoxAdapter(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -95,11 +99,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         ],
                       ),
                     ),
-                    if (state is FavoritesLoading || state is FavoritesInitial)
-                      _buildLoadingScreen()
-                    else if (state is FavoritesLoaded)
-                      if (state.allFavorites.isEmpty)
-                        Center(
+                  ),
+                  if (state is FavoritesLoading || state is FavoritesInitial)
+                    SliverToBoxAdapter(child: _buildLoadingScreen())
+                  else if (state is FavoritesLoaded)
+                    if (state.allFavorites.isEmpty)
+                      SliverToBoxAdapter(
+                        child: Center(
                           child: _buildEmptyState(
                             title:
                                 l10n?.noFavoritesYet ??
@@ -109,50 +115,51 @@ class _FavoritesPageState extends State<FavoritesPage> {
                                 'Tap the heart icon on any channel card to save it here for quick access.',
                             icon: Icons.favorite_border_rounded,
                           ),
-                        )
-                      else if (state.filteredFavorites.isEmpty)
-                        _buildEmptyState(
+                        ),
+                      )
+                    else if (state.filteredFavorites.isEmpty)
+                      SliverToBoxAdapter(
+                        child: _buildEmptyState(
                           title:
                               l10n?.noResultsFound ?? 'No Matching Favorites',
                           description:
                               'No channels match your current search or category filter.',
                           icon: Icons.search_off_rounded,
-                        )
-                      else
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16.w,
-                            vertical: 4.h,
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 16.h,
+                            crossAxisSpacing: 16.w,
+                            childAspectRatio: 1.1,
                           ),
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  mainAxisSpacing: 16.h,
-                                  crossAxisSpacing: 16.w,
-                                  childAspectRatio: 1.1,
-                                ),
-                          itemBuilder: (context, index) {
-                            final item = state.filteredFavorites[index];
-                            return ChannelCard(
-                              item: item,
-                              onTap: () {
-                                context.push(
-                                  AppRouter.channelDetailsPath,
-                                  extra: item,
-                                );
-                              },
-                            );
-                          },
-                          itemCount: state.filteredFavorites.length,
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final item = state.filteredFavorites[index];
+                              return ChannelCard(
+                                item: item,
+                                onTap: () {
+                                  context.push(
+                                    AppRouter.channelDetailsPath,
+                                    extra: item,
+                                  );
+                                },
+                              );
+                            },
+                            childCount: state.filteredFavorites.length,
+                          ),
                         ),
                       )
                   else if (state is FavoritesError)
-                      _buildErrorView(context, state.message),
-                  ],
-                ),
+                    SliverToBoxAdapter(
+                      child: _buildErrorView(context, state.message),
+                    ),
+                ],
               );
             },
           ),

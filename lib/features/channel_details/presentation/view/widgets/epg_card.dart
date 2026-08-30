@@ -58,6 +58,7 @@ class _EpgCardState extends State<EpgCard> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          splashFactory: NoSplash.splashFactory,
           onTap: prog.description.isNotEmpty
               ? () => setState(() => _isExpanded = !_isExpanded)
               : null,
@@ -146,6 +147,7 @@ class _EpgCardState extends State<EpgCard> {
                         'Finished',
                         style: TextStyle(
                           color: context.textSecondary.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w600,
                           fontSize: 11.sp,
                         ),
                       ),

@@ -1,6 +1,26 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/l10n/app_localizations.dart';
+
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.trackpad,
+      };
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const BouncingScrollPhysics(
+      decelerationRate: ScrollDecelerationRate.fast,
+    );
+  }
+}
 
 abstract class AppTheme {
   static ThemeData get darkTheme {

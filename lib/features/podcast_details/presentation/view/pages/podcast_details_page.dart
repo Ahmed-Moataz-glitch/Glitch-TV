@@ -144,193 +144,221 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                 }
               },
               builder: (context, state) {
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 16.w,
-                    vertical: 12.h,
+                return CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(
+                      decelerationRate: ScrollDecelerationRate.fast,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Section
-                      PodcastInfoHeader(
-                        podcast: widget.podcast,
-                        onPlayLatest: state is PodcastDetailsSuccess &&
-                                state.allEpisodes.isNotEmpty
-                            ? () {
-                                _navigateToPlayer(
-                                  episodes: state.allEpisodes,
-                                  initialIndex: 0,
-                                );
-                              }
-                            : null,
-                      ),
-                      SizedBox(height: 20.h),
+                  slivers: [
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+                      sliver: SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header Section
+                            PodcastInfoHeader(
+                              podcast: widget.podcast,
+                              onPlayLatest: state is PodcastDetailsSuccess &&
+                                      state.allEpisodes.isNotEmpty
+                                  ? () {
+                                      _navigateToPlayer(
+                                        episodes: state.allEpisodes,
+                                        initialIndex: 0,
+                                      );
+                                    }
+                                  : null,
+                            ),
+                            SizedBox(height: 20.h),
 
-                      // Search Input
-                      Container(
-                        decoration: BoxDecoration(
-                          color: context.cardBg,
-                          borderRadius: BorderRadius.circular(16.r),
-                          border: Border.all(
-                            color: context.isDark
-                                ? Colors.white.withValues(alpha: 0.08)
-                                : Colors.black.withValues(alpha: 0.06),
-                          ),
-                        ),
-                        child: TextField(
-                          onTapOutside: (_) =>
-                              FocusScope.of(context).unfocus(),
-                          controller: _searchController,
-                          onChanged: (val) {
-                            _cubit.searchEpisodes(val);
-                          },
-                          style: TextStyle(
-                            color: context.textPrimary,
-                            fontSize: 14.sp,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: l10n?.searchPodcasts ?? 'Search episodes by title or topic...',
-                            hintStyle: TextStyle(
-                              color: context.textSecondary.withValues(alpha: 0.6),
-                              fontSize: 13.sp,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.search_rounded,
-                              color: AppColors.primary,
-                              size: 20,
-                            ),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: Icon(
-                                      Icons.clear_rounded,
-                                      color: context.textSecondary,
-                                      size: 18.sp,
-                                    ),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      _cubit.searchEpisodes('');
-                                      setState(() {});
-                                    },
-                                  )
-                                : null,
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16.w,
-                              vertical: 12.h,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 20.h),
-
-                      // Episodes Section Header (Count & Sort)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.format_list_bulleted_rounded,
-                                color: AppColors.primary,
-                                size: 20,
+                            // Search Input
+                            Container(
+                              decoration: BoxDecoration(
+                                color: context.cardBg,
+                                borderRadius: BorderRadius.circular(16.r),
+                                border: Border.all(
+                                  color: context.isDark
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : Colors.black.withValues(alpha: 0.06),
+                                ),
                               ),
-                              SizedBox(width: 8.w),
-                              Text(
-                                l10n?.episodes ?? 'Episodes',
+                              child: TextField(
+                                onTapOutside: (_) =>
+                                    FocusScope.of(context).unfocus(),
+                                controller: _searchController,
+                                onChanged: (val) {
+                                  _cubit.searchEpisodes(val);
+                                },
                                 style: TextStyle(
                                   color: context.textPrimary,
-                                  fontSize: 18.sp,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14.sp,
                                 ),
-                              ),
-                              if (state is PodcastDetailsSuccess) ...[
-                                SizedBox(width: 8.w),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 8.w,
-                                    vertical: 2.h,
+                                decoration: InputDecoration(
+                                  hintText: l10n?.searchPodcasts ??
+                                      'Search episodes by title or topic...',
+                                  hintStyle: TextStyle(
+                                    color: context.textSecondary
+                                        .withValues(alpha: 0.6),
+                                    fontSize: 13.sp,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: context.cardBg,
-                                    borderRadius: BorderRadius.circular(10.r),
-                                    border: Border.all(
-                                      color: context.isDark
-                                          ? Colors.white.withValues(alpha: 0.1)
-                                          : Colors.black.withValues(alpha: 0.1),
-                                    ),
+                                  prefixIcon: const Icon(
+                                    Icons.search_rounded,
+                                    color: AppColors.primary,
+                                    size: 20,
                                   ),
-                                  child: Text(
-                                    '${state.filteredEpisodes.length}',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  suffixIcon: _searchController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: Icon(
+                                            Icons.clear_rounded,
+                                            color: context.textSecondary,
+                                            size: 18.sp,
+                                          ),
+                                          onPressed: () {
+                                            _searchController.clear();
+                                            _cubit.searchEpisodes('');
+                                            setState(() {});
+                                          },
+                                        )
+                                      : null,
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16.w,
+                                    vertical: 12.h,
                                   ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          if (state is PodcastDetailsSuccess &&
-                              state.allEpisodes.isNotEmpty)
-                            InkWell(
-                              onTap: () => _cubit.toggleSortOrder(),
-                              borderRadius: BorderRadius.circular(10.r),
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 10.w,
-                                  vertical: 6.h,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: context.cardBg,
-                                  borderRadius: BorderRadius.circular(10.r),
-                                  border: Border.all(
-                                    color: AppColors.primary.withAlpha(40),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      state.isNewestFirst
-                                          ? Icons.arrow_downward_rounded
-                                          : Icons.arrow_upward_rounded,
-                                      color: AppColors.primaryLight,
-                                      size: 14.sp,
-                                    ),
-                                    SizedBox(width: 4.w),
-                                    Text(
-                                      state.isNewestFirst
-                                          ? 'Newest'
-                                          : 'Oldest',
-                                      style: TextStyle(
-                                        color: context.textPrimary,
-                                        fontSize: 12.sp,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                      SizedBox(height: 14.h),
+                            SizedBox(height: 20.h),
 
-                      // Content Body
-                      if (state is PodcastDetailsLoading ||
-                          state is PodcastDetailsInitial) ...[
-                        _buildLoadingView(),
-                      ] else if (state is PodcastDetailsError) ...[
-                        _buildErrorView(state.message),
-                      ] else if (state is PodcastDetailsSuccess) ...[
-                        if (state.filteredEpisodes.isEmpty) ...[
-                          _buildEmptyView(_searchController.text.isNotEmpty),
-                        ] else ...[
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
+                            // Episodes Section Header (Count & Sort)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.format_list_bulleted_rounded,
+                                      color: AppColors.primary,
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    Text(
+                                      l10n?.episodes ?? 'Episodes',
+                                      style: TextStyle(
+                                        color: context.textPrimary,
+                                        fontSize: 18.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    if (state is PodcastDetailsSuccess) ...[
+                                      SizedBox(width: 8.w),
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8.w,
+                                          vertical: 2.h,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: context.cardBg,
+                                          borderRadius:
+                                              BorderRadius.circular(10.r),
+                                          border: Border.all(
+                                            color: context.isDark
+                                                ? Colors.white
+                                                    .withValues(alpha: 0.1)
+                                                : Colors.black
+                                                    .withValues(alpha: 0.1),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '${state.filteredEpisodes.length}',
+                                          style: const TextStyle(
+                                            color: AppColors.primary,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (state is PodcastDetailsSuccess &&
+                                    state.allEpisodes.isNotEmpty)
+                                  InkWell(
+                                    onTap: () => _cubit.toggleSortOrder(),
+                                    borderRadius: BorderRadius.circular(10.r),
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 10.w,
+                                        vertical: 6.h,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: context.cardBg,
+                                        borderRadius:
+                                            BorderRadius.circular(10.r),
+                                        border: Border.all(
+                                          color:
+                                              AppColors.primary.withAlpha(40),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            state.isNewestFirst
+                                                ? Icons.arrow_downward_rounded
+                                                : Icons.arrow_upward_rounded,
+                                            color: AppColors.primaryLight,
+                                            size: 14.sp,
+                                          ),
+                                          SizedBox(width: 4.w),
+                                          Text(
+                                            state.isNewestFirst
+                                                ? 'Newest'
+                                                : 'Oldest',
+                                            style: TextStyle(
+                                              color: context.textPrimary,
+                                              fontSize: 12.sp,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            SizedBox(height: 14.h),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Content Body
+                    if (state is PodcastDetailsLoading ||
+                        state is PodcastDetailsInitial)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        sliver: SliverToBoxAdapter(child: _buildLoadingView()),
+                      )
+                    else if (state is PodcastDetailsError)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        sliver: SliverToBoxAdapter(
+                          child: _buildErrorView(state.message),
+                        ),
+                      )
+                    else if (state is PodcastDetailsSuccess) ...[
+                      if (state.filteredEpisodes.isEmpty)
+                        SliverPadding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.w),
+                          sliver: SliverToBoxAdapter(
+                            child: _buildEmptyView(
+                                _searchController.text.isNotEmpty),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+                          sliver: SliverList.builder(
                             itemCount: state.filteredEpisodes.length,
                             itemBuilder: (context, index) {
                               final episode = state.filteredEpisodes[index];
@@ -346,10 +374,9 @@ class _PodcastDetailsPageState extends State<PodcastDetailsPage> {
                               );
                             },
                           ),
-                        ],
-                      ],
+                        ),
                     ],
-                  ),
+                  ],
                 );
               },
             ),

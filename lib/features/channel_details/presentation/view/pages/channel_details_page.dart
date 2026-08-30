@@ -144,91 +144,110 @@ class _ChannelDetailsPageState extends State<ChannelDetailsPage> {
                 }
               },
               builder: (context, state) {
-                return SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 16.w,
-                    vertical: 12.h,
+                return CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(
+                      decelerationRate: ScrollDecelerationRate.fast,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Widget
-                      ChannelInfoHeader(item: widget.channelItem),
-                      SizedBox(height: 20.h),
+                  slivers: [
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 0),
+                      sliver: SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header Widget
+                            ChannelInfoHeader(item: widget.channelItem),
+                            SizedBox(height: 20.h),
 
-                      // Date Selector Tabs (Today / Tomorrow)
-                      if (state is ChannelDetailsSuccess)
-                        _buildDateSelector(state),
+                            // Date Selector Tabs (Today / Tomorrow)
+                            if (state is ChannelDetailsSuccess)
+                              _buildDateSelector(state),
 
-                      // EPG Section Title
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_today_rounded,
-                                color: AppColors.primaryLight,
-                                size: 20.sp,
-                              ),
-                              SizedBox(width: 8.w),
-                              Text(
-                                l10n?.epgGuide ?? "TV Schedule & Guide",
-                                style: TextStyle(
-                                  color: context.textPrimary,
-                                  fontSize: 18.sp,
-                                  fontWeight: FontWeight.bold,
+                            // EPG Section Title
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_rounded,
+                                      color: AppColors.primaryLight,
+                                      size: 20.sp,
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    Text(
+                                      l10n?.epgGuide ?? "TV Schedule & Guide",
+                                      style: TextStyle(
+                                        color: context.textPrimary,
+                                        fontSize: 18.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                          if (state is ChannelDetailsSuccess)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 10.w,
-                                vertical: 4.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: context.cardBg,
-                                borderRadius: BorderRadius.circular(12.r),
-                              ),
-                              child: Text(
-                                '${state.currentProgrammes.length}',
-                                style: TextStyle(
-                                  color: AppColors.primaryLight,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                                if (state is ChannelDetailsSuccess)
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 10.w,
+                                      vertical: 4.h,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: context.cardBg,
+                                      borderRadius: BorderRadius.circular(12.r),
+                                    ),
+                                    child: Text(
+                                      '${state.currentProgrammes.length}',
+                                      style: TextStyle(
+                                        color: AppColors.primaryLight,
+                                        fontSize: 12.sp,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                        ],
+                            SizedBox(height: 16.h),
+                          ],
+                        ),
                       ),
-                      SizedBox(height: 16.h),
-
-                      // Content states
-                      if (state is ChannelDetailsLoading ||
-                          state is ChannelDetailsInitial) ...[
-                        _buildLoadingView(),
-                      ] else if (state is ChannelDetailsError) ...[
-                        _buildErrorView(state.message),
-                      ] else if (state is ChannelDetailsSuccess) ...[
-                        if (state.currentProgrammes.isEmpty) ...[
-                          _buildEmptyView(state.selectedDayIndex == 0),
-                        ] else ...[
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
+                    ),
+                    // Content states
+                    if (state is ChannelDetailsLoading ||
+                        state is ChannelDetailsInitial)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        sliver: SliverToBoxAdapter(child: _buildLoadingView()),
+                      )
+                    else if (state is ChannelDetailsError)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        sliver: SliverToBoxAdapter(
+                          child: _buildErrorView(state.message),
+                        ),
+                      )
+                    else if (state is ChannelDetailsSuccess) ...[
+                      if (state.currentProgrammes.isEmpty)
+                        SliverPadding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.w),
+                          sliver: SliverToBoxAdapter(
+                            child: _buildEmptyView(state.selectedDayIndex == 0),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+                          sliver: SliverList.builder(
                             itemCount: state.currentProgrammes.length,
                             itemBuilder: (context, index) {
                               final prog = state.currentProgrammes[index];
                               return EpgCard(programme: prog);
                             },
                           ),
-                        ],
-                      ],
+                        ),
                     ],
-                  ),
+                  ],
                 );
               },
             ),

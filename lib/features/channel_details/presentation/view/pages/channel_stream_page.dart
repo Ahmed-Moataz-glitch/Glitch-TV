@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_router.dart';
 import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
+import 'package:glitch_tv/core/view/widgets/offline_wrapper.dart';
 import 'package:glitch_tv/features/channel_details/data/api/channel_details_api.dart';
 import 'package:glitch_tv/features/channel_details/data/repo/data_source/channel_details_data_source_impl.dart';
 import 'package:glitch_tv/features/channel_details/data/repo/repo/channel_details_repo_impl.dart';
@@ -39,6 +41,8 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
   bool _hasStreamError = false;
   int _retryCount = 0;
   Timer? _reconnectTimer;
+  Timer? _playbackWatchdogTimer;
+  Timer? _bufferingWatchdogTimer;
   bool _isDisposed = false;
 
   @override
@@ -58,17 +62,27 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
       channelItem: widget.channelItem,
     );
 
-    _cubit.loadStreams();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isDisposed && mounted) {
+        _cubit.loadStreams();
+      }
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isDisposed) return;
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       try {
         _betterPlayerController?.pause();
-        _betterPlayerController?.setVolume(0.0);
+      } catch (_) {}
+    } else if (state == AppLifecycleState.resumed) {
+      try {
+        if (!_hasStreamError && _betterPlayerController != null) {
+          _betterPlayerController?.play();
+        }
       } catch (_) {}
     }
   }
@@ -76,15 +90,31 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
   void _disposeCurrentPlayer() {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
-    if (_betterPlayerController != null) {
+    _playbackWatchdogTimer?.cancel();
+    _playbackWatchdogTimer = null;
+    _bufferingWatchdogTimer?.cancel();
+    _bufferingWatchdogTimer = null;
+
+    final controller = _betterPlayerController;
+    _betterPlayerController = null;
+    _activeStreamUrl = null;
+
+    if (controller != null) {
       try {
-        _betterPlayerController!.pause();
-        _betterPlayerController!.setVolume(0.0);
-        _betterPlayerController!.dispose(forceDispose: true);
+        controller.pause();
+      } catch (e) {
+        debugPrint('Error pausing BetterPlayerController: $e');
+      }
+      try {
+        controller.setVolume(0.0);
+      } catch (e) {
+        debugPrint('Error muting BetterPlayerController: $e');
+      }
+      try {
+        controller.dispose(forceDispose: true);
       } catch (e) {
         debugPrint('Error disposing BetterPlayerController: $e');
       }
-      _betterPlayerController = null;
     }
   }
 
@@ -146,13 +176,29 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
     if (_cubit.state is! ChannelStreamSuccess) return;
     final successState = _cubit.state as ChannelStreamSuccess;
     final allStreams = successState.streams;
-    if (allStreams.length <= 1) return;
+    if (allStreams.length <= 1) {
+      _disposeCurrentPlayer();
+      if (mounted) {
+        setState(() {
+          _hasStreamError = true;
+        });
+      }
+      return;
+    }
 
     final currentIndex = allStreams.indexWhere(
       (s) => s.url == successState.selectedStream.url,
     );
     final nextIndex = (currentIndex + 1) % allStreams.length;
-    if (nextIndex == currentIndex) return;
+    if (nextIndex == currentIndex) {
+      _disposeCurrentPlayer();
+      if (mounted) {
+        setState(() {
+          _hasStreamError = true;
+        });
+      }
+      return;
+    }
 
     final nextStream = allStreams[nextIndex];
 
@@ -170,109 +216,142 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
     _disposeCurrentPlayer();
     _retryCount = 0;
     _cubit.selectStream(nextStream);
-    final channelId = widget.channelItem.channel.id;
-    if (!_isWebStream(nextStream.url, channelId)) {
-      _setupPlayer(nextStream);
-    }
   }
 
-  Future<void> _setupPlayer(ChannelStreamEntity stream) async {
+  Future<void> _setupPlayer(
+    ChannelStreamEntity stream, {
+    bool isRetry = false,
+  }) async {
     if (_isDisposed) return;
-    final streamUrl = stream.url;
-    if (_activeStreamUrl == streamUrl &&
+    final streamUrl = stream.url.trim();
+    if (streamUrl.isEmpty) return;
+
+    if (!isRetry &&
+        _activeStreamUrl == streamUrl &&
         _betterPlayerController != null &&
         !_hasStreamError) {
       return;
     }
 
-    _activeStreamUrl = streamUrl;
-    _reconnectTimer?.cancel();
-    if (mounted) {
-      setState(() {
-        _hasStreamError = false;
-      });
-    }
-
-    _disposeCurrentPlayer();
-
-    final betterPlayerConfiguration = BetterPlayerConfiguration(
-      aspectRatio: 16 / 9,
-      fit: BoxFit.contain,
-      autoPlay: true,
-      looping: false,
-      allowedScreenSleep: false,
-      handleLifecycle: true,
-      autoDispose: true,
-      expandToFill: false,
-      controlsConfiguration: BetterPlayerControlsConfiguration(
-        showControls: true,
-        enableFullscreen: true,
-        enablePlayPause: true,
-        enableMute: true,
-        enableProgressBar: false,
-        enableProgressBarDrag: false,
-        enableProgressText: false,
-        enableSkips: true,
-        enableQualities: false,
-        enableAudioTracks: false,
-        enableSubtitles: false,
-        enablePlaybackSpeed: false,
-        controlBarColor: Colors.black.withAlpha(180),
-        iconsColor: Colors.white,
-        loadingColor: AppColors.primaryLight,
-        progressBarPlayedColor: AppColors.primary,
-        progressBarHandleColor: AppColors.primaryLight,
-        overflowModalColor: AppColors.card,
-        overflowModalTextColor: AppColors.textPrimary,
-        overflowMenuIconsColor: AppColors.primaryLight,
-      ),
-      errorBuilder: (context, errorMessage) {
-        return _buildErrorOverlay(stream);
-      },
-    );
-
-    // Build headers safely (avoid invalid Origin headers that break CORS)
-    final Map<String, String> headers = {
-      'User-Agent': (stream.userAgent != null && stream.userAgent!.trim().isNotEmpty)
-          ? stream.userAgent!.trim()
-          : 'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-    };
-
-    if (stream.referrer != null && stream.referrer!.trim().isNotEmpty) {
-      headers['Referer'] = stream.referrer!.trim();
-    }
-
-    // Determine specific video format to assist ExoPlayer extractor selection
-    BetterPlayerVideoFormat videoFormat = BetterPlayerVideoFormat.other;
-    final lowerUrl = streamUrl.toLowerCase();
-    if (lowerUrl.contains('.m3u8') ||
-        lowerUrl.contains('/hls/') ||
-        lowerUrl.contains('playlist')) {
-      videoFormat = BetterPlayerVideoFormat.hls;
-    } else if (lowerUrl.contains('.mpd') || lowerUrl.contains('/dash/')) {
-      videoFormat = BetterPlayerVideoFormat.dash;
-    } else if (lowerUrl.contains('.ism')) {
-      videoFormat = BetterPlayerVideoFormat.ss;
-    }
-
-    final betterPlayerDataSource = BetterPlayerDataSource(
-      BetterPlayerDataSourceType.network,
-      streamUrl,
-      videoFormat: videoFormat,
-      liveStream: true,
-      headers: headers,
-      bufferingConfiguration: const BetterPlayerBufferingConfiguration(
-        minBufferMs: 20000,
-        maxBufferMs: 50000,
-        bufferForPlaybackMs: 2500,
-        bufferForPlaybackAfterRebufferMs: 6500,
-      ),
-      cacheConfiguration: const BetterPlayerCacheConfiguration(
-        useCache: false,
-      ),
-    );
-
     try {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+      _playbackWatchdogTimer?.cancel();
+      _bufferingWatchdogTimer?.cancel();
+
+      _disposeCurrentPlayer();
+      _activeStreamUrl = streamUrl;
+
+      if (mounted) {
+        setState(() {
+          _hasStreamError = false;
+        });
+      }
+
+      // Start 7-second watchdog to prevent infinite loading spinners on dead/hanging streams
+      _playbackWatchdogTimer = Timer(const Duration(seconds: 7), () {
+        if (_isDisposed || !mounted) return;
+        if (!_hasStreamError) {
+          debugPrint('Playback watchdog triggered for stream: $streamUrl');
+          final successState = _cubit.state is ChannelStreamSuccess
+              ? _cubit.state as ChannelStreamSuccess
+              : null;
+          final hasMultipleFeeds =
+              successState != null && successState.streams.length > 1;
+
+          if (hasMultipleFeeds) {
+            _trySwitchToNextFeed(showToast: true);
+          } else {
+            _disposeCurrentPlayer();
+            if (mounted) {
+              setState(() {
+                _hasStreamError = true;
+              });
+            }
+          }
+        }
+      });
+
+      final betterPlayerConfiguration = BetterPlayerConfiguration(
+        aspectRatio: 16 / 9,
+        fit: BoxFit.contain,
+        autoPlay: true,
+        looping: false,
+        allowedScreenSleep: false,
+        handleLifecycle: true,
+        autoDispose: false,
+        expandToFill: false,
+        controlsConfiguration: BetterPlayerControlsConfiguration(
+          showControls: true,
+          enableFullscreen: true,
+          enablePlayPause: true,
+          enableMute: true,
+          enableProgressBar: false,
+          enableProgressBarDrag: false,
+          enableProgressText: false,
+          enableSkips: false,
+          enableQualities: true,
+          enableAudioTracks: false,
+          enableSubtitles: false,
+          enablePlaybackSpeed: false,
+          controlBarColor: Colors.black.withAlpha(180),
+          iconsColor: Colors.white,
+          loadingColor: AppColors.primaryLight,
+          progressBarPlayedColor: AppColors.primary,
+          progressBarHandleColor: AppColors.primaryLight,
+          overflowModalColor: AppColors.card,
+          overflowModalTextColor: AppColors.textPrimary,
+          overflowMenuIconsColor: AppColors.primaryLight,
+        ),
+        errorBuilder: (context, errorMessage) {
+          return _buildErrorOverlay(stream);
+        },
+      );
+
+      // Build headers safely (avoid invalid Origin headers that break CORS)
+      final Map<String, String> headers = {
+        'User-Agent':
+            (stream.userAgent != null && stream.userAgent!.trim().isNotEmpty)
+                ? stream.userAgent!.trim()
+                : 'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+      };
+
+      if (stream.referrer != null && stream.referrer!.trim().isNotEmpty) {
+        headers['Referer'] = stream.referrer!.trim();
+      }
+
+      // Determine specific video format to assist ExoPlayer extractor selection
+      BetterPlayerVideoFormat videoFormat = BetterPlayerVideoFormat.other;
+      final lowerUrl = streamUrl.toLowerCase();
+      if (lowerUrl.contains('.m3u8') ||
+          lowerUrl.contains('/hls/') ||
+          lowerUrl.contains('playlist') ||
+          lowerUrl.contains('.m3u') ||
+          lowerUrl.contains('.ts')) {
+        videoFormat = BetterPlayerVideoFormat.hls;
+      } else if (lowerUrl.contains('.mpd') || lowerUrl.contains('/dash/')) {
+        videoFormat = BetterPlayerVideoFormat.dash;
+      } else if (lowerUrl.contains('.ism')) {
+        videoFormat = BetterPlayerVideoFormat.ss;
+      }
+
+      final betterPlayerDataSource = BetterPlayerDataSource(
+        BetterPlayerDataSourceType.network,
+        streamUrl,
+        videoFormat: videoFormat,
+        liveStream: true,
+        headers: headers,
+        bufferingConfiguration: const BetterPlayerBufferingConfiguration(
+          minBufferMs: 10000,
+          maxBufferMs: 25000,
+          bufferForPlaybackMs: 2000,
+          bufferForPlaybackAfterRebufferMs: 4000,
+        ),
+        cacheConfiguration: const BetterPlayerCacheConfiguration(
+          useCache: false,
+        ),
+      );
+
       final controller = BetterPlayerController(
         betterPlayerConfiguration,
         betterPlayerDataSource: betterPlayerDataSource,
@@ -280,11 +359,66 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
 
       controller.addEventsListener((event) {
         if (_isDisposed) return;
-        if (event.betterPlayerEventType == BetterPlayerEventType.exception) {
+        final type = event.betterPlayerEventType;
+
+        if (type == BetterPlayerEventType.initialized) {
+          _playbackWatchdogTimer?.cancel();
+          _playbackWatchdogTimer = null;
+          _bufferingWatchdogTimer?.cancel();
+          _bufferingWatchdogTimer = null;
+          _retryCount = 0;
+          try {
+            controller.play();
+          } catch (_) {}
+          if (_hasStreamError && mounted) {
+            setState(() {
+              _hasStreamError = false;
+            });
+          }
+        } else if (type == BetterPlayerEventType.play) {
+          _playbackWatchdogTimer?.cancel();
+          _playbackWatchdogTimer = null;
+          _bufferingWatchdogTimer?.cancel();
+          _bufferingWatchdogTimer = null;
+          if (_hasStreamError && mounted) {
+            setState(() {
+              _hasStreamError = false;
+            });
+          }
+        } else if (type == BetterPlayerEventType.bufferingStart) {
+          _bufferingWatchdogTimer?.cancel();
+          _bufferingWatchdogTimer = Timer(const Duration(seconds: 8), () {
+            if (_isDisposed || !mounted) return;
+            debugPrint('Buffering watchdog triggered for stream: $streamUrl');
+            final successState = _cubit.state is ChannelStreamSuccess
+                ? _cubit.state as ChannelStreamSuccess
+                : null;
+            final hasMultipleFeeds =
+                successState != null && successState.streams.length > 1;
+            if (hasMultipleFeeds) {
+              _trySwitchToNextFeed(showToast: true);
+            } else {
+              _disposeCurrentPlayer();
+              if (mounted) {
+                setState(() {
+                  _hasStreamError = true;
+                });
+              }
+            }
+          });
+        } else if (type == BetterPlayerEventType.bufferingEnd) {
+          _bufferingWatchdogTimer?.cancel();
+          _bufferingWatchdogTimer = null;
+        } else if (type == BetterPlayerEventType.exception) {
+          _playbackWatchdogTimer?.cancel();
+          _playbackWatchdogTimer = null;
+          _bufferingWatchdogTimer?.cancel();
+          _bufferingWatchdogTimer = null;
           debugPrint(
             'BetterPlayer error: ${event.parameters?['exception'] ?? 'unknown'}',
           );
-          if (!_hasStreamError && mounted) {
+          if (_isDisposed || !mounted) return;
+          if (!_hasStreamError) {
             final successState = _cubit.state is ChannelStreamSuccess
                 ? _cubit.state as ChannelStreamSuccess
                 : null;
@@ -298,22 +432,17 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
               _reconnectTimer?.cancel();
               _reconnectTimer = Timer(const Duration(milliseconds: 1500), () {
                 if (!_isDisposed && mounted) {
-                  _setupPlayer(stream);
+                  _setupPlayer(stream, isRetry: true);
                 }
               });
             } else {
-              setState(() {
-                _hasStreamError = true;
-              });
+              _disposeCurrentPlayer();
+              if (mounted) {
+                setState(() {
+                  _hasStreamError = true;
+                });
+              }
             }
-          }
-        } else if (event.betterPlayerEventType ==
-            BetterPlayerEventType.initialized) {
-          _retryCount = 0;
-          if (_hasStreamError && mounted) {
-            setState(() {
-              _hasStreamError = false;
-            });
           }
         }
       });
@@ -322,6 +451,10 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
         setState(() {
           _betterPlayerController = controller;
         });
+      } else {
+        try {
+          controller.dispose(forceDispose: true);
+        } catch (_) {}
       }
     } catch (e) {
       debugPrint('Error initializing BetterPlayerController: $e');
@@ -379,6 +512,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
                 ElevatedButton.icon(
                   onPressed: () {
                     _retryCount = 0;
+                    _activeStreamUrl = null;
                     _setupPlayer(stream);
                   },
                   icon: Icon(Icons.refresh_rounded, size: 16.sp),
@@ -427,14 +561,15 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
     final logoUrl = widget.channelItem.logoUrl;
     final l10n = context.l10n;
 
-    return PopScope(
-      canPop: true,
-      onPopInvokedWithResult: (didPop, result) {
+    return OfflineWrapper(
+      onRetry: () {
         _disposeCurrentPlayer();
+        _retryCount = 0;
+        _cubit.loadStreams(forceRefresh: true);
       },
-      child: BlocProvider.value(
-        value: _cubit,
-        child: Scaffold(
+      offlineBuilder: (context) {
+        _disposeCurrentPlayer();
+        return Scaffold(
           backgroundColor: context.scaffoldBg,
           appBar: AppBar(
             backgroundColor: context.scaffoldBg,
@@ -443,7 +578,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
               icon: Icon(
                 Icons.arrow_back_ios_new_rounded,
                 color: context.textPrimary,
-                size: 20.sp,
+                size: 24.sp,
               ),
               onPressed: () {
                 _disposeCurrentPlayer();
@@ -451,13 +586,11 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
               },
             ),
             title: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 if (logoUrl.isNotEmpty) ...[
-                  Container(
+                  SizedBox(
                     width: 40.w,
                     height: 40.h,
-                    margin: EdgeInsets.only(right: 8.w),
                     child: CachedNetworkImage(
                       imageUrl: logoUrl,
                       memCacheWidth: (40 * devicePixelRatio).toInt(),
@@ -486,54 +619,116 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
             centerTitle: true,
           ),
           body: SafeArea(
-            child: BlocConsumer<ChannelStreamCubit, ChannelStreamState>(
-              listener: (context, state) {
-                if (_isDisposed) return;
-                if (state is ChannelStreamError) {
-                  AppToast.showToast(
-                    context: context,
-                    title: l10n?.error ?? 'Stream Error',
-                    description: state.message,
-                    type: ToastificationType.error,
-                  );
-                } else if (state is ChannelStreamSuccess) {
-                  final channelId = widget.channelItem.channel.id;
-                  if (!_isWebStream(state.selectedStream.url, channelId)) {
-                    _setupPlayer(state.selectedStream);
-                  }
-                }
+            child: OfflineFallbackView(
+              onRetry: () {
+                _disposeCurrentPlayer();
+                _retryCount = 0;
+                _cubit.loadStreams(forceRefresh: true);
               },
-              builder: (context, state) {
-                if (_isDisposed) {
+              onGoToDownloads: () {
+                context.push(AppRouter.downloadsPath);
+              },
+            ),
+          ),
+        );
+      },
+      child: PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, result) {
+          _disposeCurrentPlayer();
+        },
+        child: BlocProvider.value(
+          value: _cubit,
+          child: Scaffold(
+            backgroundColor: context.scaffoldBg,
+            appBar: AppBar(
+              backgroundColor: context.scaffoldBg,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: context.textPrimary,
+                  size: 24.sp,
+                ),
+                onPressed: () {
+                  _disposeCurrentPlayer();
+                  context.pop();
+                },
+              ),
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (logoUrl.isNotEmpty) ...[
+                    Container(
+                      width: 40.w,
+                      height: 40.h,
+                      margin: EdgeInsets.only(right: 8.w),
+                      child: CachedNetworkImage(
+                        imageUrl: logoUrl,
+                        memCacheWidth: (40 * devicePixelRatio).toInt(),
+                        memCacheHeight: (40 * devicePixelRatio).toInt(),
+                        fit: BoxFit.contain,
+                        errorWidget: (_, __, ___) => const Icon(
+                          Icons.live_tv,
+                          color: AppColors.primaryLight,
+                        ),
+                      ),
+                    ),
+                  ],
+                  Flexible(
+                    child: Text(
+                      channel.name.isNotEmpty ? channel.name : channel.id,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.textPrimary,
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              centerTitle: true,
+            ),
+            body: SafeArea(
+              child: BlocConsumer<ChannelStreamCubit, ChannelStreamState>(
+                listener: (context, state) {
+                  if (_isDisposed) return;
+                  if (state is ChannelStreamError) {
+                    AppToast.showToast(
+                      context: context,
+                      title: l10n?.error ?? 'Stream Error',
+                      description: state.message,
+                      type: ToastificationType.error,
+                    );
+                  } else if (state is ChannelStreamSuccess) {
+                    final channelId = widget.channelItem.channel.id;
+                    if (!_isWebStream(state.selectedStream.url, channelId)) {
+                      _setupPlayer(state.selectedStream);
+                    }
+                  }
+                },
+                builder: (context, state) {
+                  if (_isDisposed) {
+                    return const SizedBox.shrink();
+                  }
+
+                  if (state is ChannelStreamLoading ||
+                      state is ChannelStreamInitial) {
+                    return _buildLoadingView();
+                  }
+
+                  if (state is ChannelStreamError) {
+                    return _buildErrorView(state.message);
+                  }
+
+                  if (state is ChannelStreamSuccess) {
+                    return _buildPlayerContent(state);
+                  }
+
                   return const SizedBox.shrink();
-                }
-
-                if (state is ChannelStreamLoading ||
-                    state is ChannelStreamInitial) {
-                  return _buildLoadingView();
-                }
-
-                if (state is ChannelStreamError) {
-                  return _buildErrorView(state.message);
-                }
-
-                if (state is ChannelStreamSuccess) {
-                  final channelId = widget.channelItem.channel.id;
-                  if (!_isWebStream(state.selectedStream.url, channelId) &&
-                      _betterPlayerController == null &&
-                      !_hasStreamError &&
-                      _activeStreamUrl != state.selectedStream.url) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted && !_isDisposed) {
-                        _setupPlayer(state.selectedStream);
-                      }
-                    });
-                  }
-                  return _buildPlayerContent(state);
-                }
-
-                return const SizedBox.shrink();
-              },
+                },
+              ),
             ),
           ),
         ),
@@ -549,6 +744,18 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
     final isWeb = _isWebStream(stream.url, channelId);
     final targetUrl = _formatStreamUrl(stream.url);
     final l10n = context.l10n;
+
+    // Ensure player is initialized if not yet started
+    if (!isWeb &&
+        _betterPlayerController == null &&
+        !_hasStreamError &&
+        _activeStreamUrl != stream.url) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_isDisposed && mounted && _betterPlayerController == null) {
+          _setupPlayer(stream);
+        }
+      });
+    }
 
     return Column(
       children: [
@@ -694,12 +901,10 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
                           fontSize: 13.sp,
                         ),
                         onSelected: (selected) {
-                          if (selected) {
+                          if (selected && stream.url != item.url) {
+                            _retryCount = 0;
                             _disposeCurrentPlayer();
                             _cubit.selectStream(item);
-                            if (!_isWebStream(item.url, channelId)) {
-                              _setupPlayer(item);
-                            }
                           }
                         },
                       );

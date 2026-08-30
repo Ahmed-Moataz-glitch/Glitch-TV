@@ -6,7 +6,7 @@ class FetchRadioStationsUseCase {
   final HomeRepo repo;
   FetchRadioStationsUseCase(this.repo);
 
-  Future<ApiResult<List<RadioStationEntity>>> call() async {
-    return await repo.fetchRadioStations();
+  Future<ApiResult<List<RadioStationEntity>>> call({bool forceRefresh = false}) async {
+    return await repo.fetchRadioStations(forceRefresh: forceRefresh);
   }
 }

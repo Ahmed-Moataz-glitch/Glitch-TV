@@ -36,9 +36,10 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
   double _volume = 1.0;
   bool _isMuted = false;
   String _nowPlayingMetadata = '';
+  int _loadGeneration = 0;
+  Timer? _switchDebounceTimer;
 
   StreamSubscription<PlayerState>? _playerStateSub;
-  StreamSubscription<int?>? _currentIndexSub;
   StreamSubscription<IcyMetadata?>? _icyMetadataSub;
   late AnimationController _pulseController;
 
@@ -66,12 +67,12 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
 
   AudioSource _createAudioSource(RadioStationEntity station) {
     final streamUrl = station.streamUrl.isNotEmpty
-        ? station.streamUrl
+        ? station.streamUrl.trim()
         : 'http://stream.zeno.fm/f3wvbbqmdg8uv';
 
     Uri? artUri;
     if (station.favicon.isNotEmpty) {
-      artUri = Uri.tryParse(station.favicon);
+      artUri = Uri.tryParse(station.favicon.trim());
     }
 
     return AudioSource.uri(
@@ -104,17 +105,6 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
       }
     });
 
-    _currentIndexSub = _player.currentIndexStream.listen((index) {
-      if (index != null && index >= 0 && index < _playlist.length && mounted) {
-        if (_currentIndex != index) {
-          setState(() {
-            _currentIndex = index;
-            _nowPlayingMetadata = '';
-          });
-        }
-      }
-    });
-
     _icyMetadataSub = _player.icyMetadataStream.listen((metadata) {
       if (mounted) {
         final title = metadata?.info?.title?.trim() ?? '';
@@ -130,6 +120,8 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
   }
 
   Future<void> _loadAndPlay() async {
+    final int currentGen = ++_loadGeneration;
+
     if (mounted) {
       setState(() {
         _isLoading = true;
@@ -138,14 +130,32 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
     }
 
     try {
-      final sources = _playlist.map(_createAudioSource).toList();
-      await _player.setAudioSources(
-        sources,
-        initialIndex: _currentIndex,
-        initialPosition: Duration.zero,
-      );
+      final source = _createAudioSource(_currentStation);
+      if (_loadGeneration != currentGen) return;
+
+      try {
+        await _player.stop();
+      } catch (_) {}
+
+      if (_loadGeneration != currentGen) return;
+
+      await _player.setAudioSource(source, preload: true);
+
+      if (_loadGeneration != currentGen) return;
+
       await _player.play();
     } catch (e) {
+      if (_loadGeneration != currentGen) return;
+
+      final errStr = e.toString().toLowerCase();
+      // Silently ignore aborted/cancelled requests caused by rapid switching
+      if (errStr.contains('abort') ||
+          errStr.contains('cancel') ||
+          errStr.contains('interrupted') ||
+          errStr.contains('connection reset')) {
+        return;
+      }
+
       debugPrint('Radio playback error: $e');
       if (mounted) {
         AppToast.showToast(
@@ -156,7 +166,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
         );
       }
     } finally {
-      if (mounted) {
+      if (mounted && _loadGeneration == currentGen) {
         setState(() {
           _isLoading = false;
         });
@@ -166,9 +176,10 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
 
   @override
   void dispose() {
+    _loadGeneration++;
+    _switchDebounceTimer?.cancel();
     _pulseController.dispose();
     _playerStateSub?.cancel();
-    _currentIndexSub?.cancel();
     _icyMetadataSub?.cancel();
     _player.stop();
     _player.dispose();
@@ -193,28 +204,33 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
     }
   }
 
-  Future<void> _playNext() async {
-    try {
-      if (_player.hasNext) {
-        await _player.seekToNext();
-      } else if (_currentIndex < _playlist.length - 1) {
-        await _player.seek(Duration.zero, index: _currentIndex + 1);
+  void _changeStation(int newIndex) {
+    if (_playlist.isEmpty) return;
+    _switchDebounceTimer?.cancel();
+
+    setState(() {
+      _currentIndex = newIndex;
+      _isLoading = true;
+      _nowPlayingMetadata = '';
+    });
+
+    _switchDebounceTimer = Timer(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        _loadAndPlay();
       }
-    } catch (e) {
-      debugPrint('Error seeking to next station: $e');
-    }
+    });
   }
 
-  Future<void> _playPrevious() async {
-    try {
-      if (_player.hasPrevious) {
-        await _player.seekToPrevious();
-      } else if (_currentIndex > 0) {
-        await _player.seek(Duration.zero, index: _currentIndex - 1);
-      }
-    } catch (e) {
-      debugPrint('Error seeking to previous station: $e');
-    }
+  void _playNext() {
+    if (_playlist.isEmpty) return;
+    final nextIdx = (_currentIndex < _playlist.length - 1) ? _currentIndex + 1 : 0;
+    _changeStation(nextIdx);
+  }
+
+  void _playPrevious() {
+    if (_playlist.isEmpty) return;
+    final prevIdx = (_currentIndex > 0) ? _currentIndex - 1 : _playlist.length - 1;
+    _changeStation(prevIdx);
   }
 
   void _showVolumeDialog() {

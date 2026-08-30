@@ -15,8 +15,8 @@ class HomeDataSourceImpl extends HomeDataSource {
   HomeDataSourceImpl(this._homeApi);
 
   @override
-  Future<ApiResult<List<ChannelsResponseEntity>>> fetchChannels() async {
-    final result = await _homeApi.fetchChannels();
+  Future<ApiResult<List<ChannelsResponseEntity>>> fetchChannels({bool forceRefresh = false}) async {
+    final result = await _homeApi.fetchChannels(forceRefresh: forceRefresh);
     switch(result) {
       case ApiSuccess<List<ChannelsResponseDto>>():
         final entities = result.data?.map((e) => e.toEntity()).toList() ?? [];
@@ -27,8 +27,8 @@ class HomeDataSourceImpl extends HomeDataSource {
   }
 
   @override
-  Future<ApiResult<List<LogosResponseEntity>>> fetchLogos() async {
-    final result = await _homeApi.fetchLogos();
+  Future<ApiResult<List<LogosResponseEntity>>> fetchLogos({bool forceRefresh = false}) async {
+    final result = await _homeApi.fetchLogos(forceRefresh: forceRefresh);
     switch(result) {
       case ApiSuccess<List<LogosResponseDto>>():
         final entities = result.data?.map((e) => e.toEntity()).toList() ?? [];
@@ -39,8 +39,8 @@ class HomeDataSourceImpl extends HomeDataSource {
   }
 
   @override
-  Future<ApiResult<List<RadioStationEntity>>> fetchRadioStations() async {
-    final result = await _homeApi.fetchRadioStations();
+  Future<ApiResult<List<RadioStationEntity>>> fetchRadioStations({bool forceRefresh = false}) async {
+    final result = await _homeApi.fetchRadioStations(forceRefresh: forceRefresh);
     switch (result) {
       case ApiSuccess<List<RadioStationDto>>():
         final entities = result.data?.map((e) => e.toEntity()).toList() ?? [];
@@ -51,8 +51,8 @@ class HomeDataSourceImpl extends HomeDataSource {
   }
 
   @override
-  Future<ApiResult<List<PodcastEntity>>> fetchPodcasts() async {
-    final result = await _homeApi.fetchPodcasts();
+  Future<ApiResult<List<PodcastEntity>>> fetchPodcasts({bool forceRefresh = false}) async {
+    final result = await _homeApi.fetchPodcasts(forceRefresh: forceRefresh);
     switch (result) {
       case ApiSuccess<List<PodcastDto>>():
         final entities = result.data?.map((e) => e.toEntity()).toList() ?? [];

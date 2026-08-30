@@ -29,7 +29,7 @@ class OfflineWrapper extends StatelessWidget {
         List<ConnectivityResult> connectivity,
         Widget childWidget,
       ) {
-        final bool isConnected =
+        final bool isConnected = connectivity.isNotEmpty &&
             !connectivity.contains(ConnectivityResult.none);
 
         if (!isConnected) {
@@ -38,6 +38,20 @@ class OfflineWrapper extends StatelessWidget {
           }
           return Scaffold(
             backgroundColor: context.scaffoldBg,
+            appBar: Navigator.of(context).canPop()
+                ? AppBar(
+                    backgroundColor: context.scaffoldBg,
+                    elevation: 0,
+                    leading: IconButton(
+                      icon: Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: context.textPrimary,
+                        size: 20.sp,
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  )
+                : null,
             body: SafeArea(
               child: OfflineFallbackView(onRetry: onRetry),
             ),
