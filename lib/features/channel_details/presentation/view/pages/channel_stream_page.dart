@@ -248,8 +248,8 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
         });
       }
 
-      // Start 7-second watchdog to prevent infinite loading spinners on dead/hanging streams
-      _playbackWatchdogTimer = Timer(const Duration(seconds: 7), () {
+      // Start 14-second watchdog to prevent infinite loading spinners on dead/hanging streams
+      _playbackWatchdogTimer = Timer(const Duration(seconds: 14), () {
         if (_isDisposed || !mounted) return;
         if (!_hasStreamError) {
           debugPrint('Playback watchdog triggered for stream: $streamUrl');
@@ -291,8 +291,8 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
           enableProgressText: false,
           enableSkips: false,
           enableQualities: true,
-          enableAudioTracks: false,
-          enableSubtitles: false,
+          enableAudioTracks: true,
+          enableSubtitles: true,
           enablePlaybackSpeed: false,
           controlBarColor: Colors.black.withAlpha(180),
           iconsColor: Colors.white,
@@ -308,28 +308,34 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
         },
       );
 
-      // Build headers safely (avoid invalid Origin headers that break CORS)
+      // Build streaming-optimized HTTP headers
       final Map<String, String> headers = {
         'User-Agent':
             (stream.userAgent != null && stream.userAgent!.trim().isNotEmpty)
                 ? stream.userAgent!.trim()
                 : 'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+        'Accept': '*/*',
+        'Connection': 'keep-alive',
       };
 
       if (stream.referrer != null && stream.referrer!.trim().isNotEmpty) {
         headers['Referer'] = stream.referrer!.trim();
       }
 
-      // Determine specific video format to assist ExoPlayer extractor selection
+      // Determine specific video format to assist ExoPlayer/AVPlayer extractor selection
       BetterPlayerVideoFormat videoFormat = BetterPlayerVideoFormat.other;
       final lowerUrl = streamUrl.toLowerCase();
       if (lowerUrl.contains('.m3u8') ||
-          lowerUrl.contains('/hls/') ||
+          lowerUrl.contains('/hls') ||
+          lowerUrl.contains('hls.') ||
           lowerUrl.contains('playlist') ||
           lowerUrl.contains('.m3u') ||
+          lowerUrl.contains('chunklist') ||
+          lowerUrl.contains('/stream/') ||
+          lowerUrl.contains('live') ||
           lowerUrl.contains('.ts')) {
         videoFormat = BetterPlayerVideoFormat.hls;
-      } else if (lowerUrl.contains('.mpd') || lowerUrl.contains('/dash/')) {
+      } else if (lowerUrl.contains('.mpd') || lowerUrl.contains('/dash')) {
         videoFormat = BetterPlayerVideoFormat.dash;
       } else if (lowerUrl.contains('.ism')) {
         videoFormat = BetterPlayerVideoFormat.ss;
@@ -341,11 +347,14 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
         videoFormat: videoFormat,
         liveStream: true,
         headers: headers,
+        useAsmsTracks: true,
+        useAsmsAudioTracks: true,
+        useAsmsSubtitles: true,
         bufferingConfiguration: const BetterPlayerBufferingConfiguration(
-          minBufferMs: 10000,
-          maxBufferMs: 25000,
+          minBufferMs: 20000,
+          maxBufferMs: 60000,
           bufferForPlaybackMs: 2000,
-          bufferForPlaybackAfterRebufferMs: 4000,
+          bufferForPlaybackAfterRebufferMs: 3500,
         ),
         cacheConfiguration: const BetterPlayerCacheConfiguration(
           useCache: false,
@@ -387,7 +396,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
           }
         } else if (type == BetterPlayerEventType.bufferingStart) {
           _bufferingWatchdogTimer?.cancel();
-          _bufferingWatchdogTimer = Timer(const Duration(seconds: 8), () {
+          _bufferingWatchdogTimer = Timer(const Duration(seconds: 12), () {
             if (_isDisposed || !mounted) return;
             debugPrint('Buffering watchdog triggered for stream: $streamUrl');
             final successState = _cubit.state is ChannelStreamSuccess

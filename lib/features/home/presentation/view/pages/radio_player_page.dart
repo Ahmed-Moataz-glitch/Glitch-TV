@@ -134,7 +134,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
       if (_loadGeneration != currentGen) return;
 
       try {
-        await _player.stop();
+        await _player.play();
       } catch (_) {}
 
       if (_loadGeneration != currentGen) return;
@@ -181,8 +181,8 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
     _pulseController.dispose();
     _playerStateSub?.cancel();
     _icyMetadataSub?.cancel();
-    _player.stop();
-    _player.dispose();
+    // _player.stop();
+    // _player.dispose();
     super.dispose();
   }
 
