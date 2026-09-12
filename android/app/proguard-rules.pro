@@ -53,8 +53,6 @@
 -keep class com.ryanheise.audioservice.** { *; }
 -keep class androidx.media.AudioAttributesCompat { *; }
 
-# Radio Player
--keep class me.sithiramunasinghe.flutter.flutter_radio_player.** { *; }
 
 # SWebView / Flutter InAppWebView
 -keep class com.pichillilorenzo.flutter_inappwebview.** { *; }

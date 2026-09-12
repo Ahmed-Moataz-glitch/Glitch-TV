@@ -26,6 +26,7 @@ Built with **Flutter**, designed using **Clean Architecture**, and powered by **
 ## 📖 Table of Contents
 
 - [Overview](#-overview)
+- [Screenshots](#-screenshots)
 - [Key Features](#-key-features)
   - [Live TV Streaming & EPG](#-live-tv-streaming--epg-guide)
   - [Live Radio Broadcasting](#-live-radio-broadcasting)
@@ -57,6 +58,30 @@ Built with **Flutter**, designed using **Clean Architecture**, and powered by **
 **Glitch TV** is an all-in-one entertainment hub that unifies **Live Television**, **Live Radio**, and **On-Demand Podcasts** into a single, high-performance Flutter mobile application.
 
 Engineered with production-grade architectural patterns, it delivers seamless HLS/DASH video playback with auto-failover, background audio service with lock-screen media controls, multi-language localization (with full RTL support), and a robust offline download manager for podcast episodes.
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+
+### 📺 Live TV & Radio Experience
+
+| Splash Screen | Live TV Hub | TV Schedule & EPG |
+| :---: | :---: | :---: |
+| <img src="assets/screenshots/Screenshot_1789228500.png" width="250" alt="Splash Screen" /><br /><sub><b>Splash & App Launch</b></sub> | <img src="assets/screenshots/Screenshot_1789228536.png" width="250" alt="Live TV Hub" /><br /><sub><b>TV Channels & Categories</b></sub> | <img src="assets/screenshots/Screenshot_1789228686.png" width="250" alt="TV Guide & EPG" /><br /><sub><b>Channel Details & EPG Guide</b></sub> |
+
+| Live TV Video Player | Live Radio Hub | Live Radio Player |
+| :---: | :---: | :---: |
+| <img src="assets/screenshots/Screenshot_1789231520.png" width="250" alt="Live Video Player" /><br /><sub><b>HD Video Stream Playback</b></sub> | <img src="assets/screenshots/Screenshot_1789228543.png" width="250" alt="Live Radio Hub" /><br /><sub><b>Live Radio Stations</b></sub> | <img src="assets/screenshots/Screenshot_1789228635.png" width="250" alt="Radio Player" /><br /><sub><b>Radio Playback & ICY Metadata</b></sub> |
+
+### 🎙️ Podcasts & Episodes
+
+| Podcasts Discovery | Podcast Episodes | Podcast Audio Player |
+| :---: | :---: | :---: |
+| <img src="assets/screenshots/Screenshot_1789228555.png" width="250" alt="Podcasts Discovery" /><br /><sub><b>Trending Podcasts & Categories</b></sub> | <img src="assets/screenshots/Screenshot_1789228563.png" width="250" alt="Podcast Episodes" /><br /><sub><b>Episode Guide & Overview</b></sub> | <img src="assets/screenshots/Screenshot_1789228580.png" width="250" alt="Podcast Audio Player" /><br /><sub><b>Audio Controls & Downloads</b></sub> |
+
+</div>
 
 ---
 
@@ -149,7 +174,8 @@ glitch_tv/
 ├── android/                   # Android native configuration & manifests
 ├── assets/                    # Static assets & animations
 │   ├── images/                # App splash screen graphics
-│   └── lottie/                # Lottie vector animation files
+│   ├── lottie/                # Lottie vector animation files
+│   └── screenshots/           # Application preview screenshots
 ├── ios/                       # iOS native configuration & Info.plist
 ├── lib/
 │   ├── core/                  # Core modules & shared utilities

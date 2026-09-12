@@ -65,11 +65,15 @@ abstract class AppRouter {
           name: channelDetailsName,
           builder: (context, state) {
             if (state.extra is ChannelItemEntity) {
-              return ChannelDetailsPage(channelItem: state.extra as ChannelItemEntity);
+              return ChannelDetailsPage(
+                channelItem: state.extra as ChannelItemEntity,
+              );
             }
             return Scaffold(
               appBar: AppBar(title: const Text('Channel Details')),
-              body: const Center(child: Text('Channel information not available')),
+              body: const Center(
+                child: Text('Channel information not available'),
+              ),
             );
           },
         ),
@@ -78,11 +82,15 @@ abstract class AppRouter {
           name: watchStreamName,
           builder: (context, state) {
             if (state.extra is ChannelItemEntity) {
-              return ChannelStreamPage(channelItem: state.extra as ChannelItemEntity);
+              return ChannelStreamPage(
+                channelItem: state.extra as ChannelItemEntity,
+              );
             }
             return Scaffold(
               appBar: AppBar(title: const Text('Watch Stream')),
-              body: const Center(child: Text('Stream information not available')),
+              body: const Center(
+                child: Text('Stream information not available'),
+              ),
             );
           },
         ),
@@ -96,7 +104,7 @@ abstract class AppRouter {
                 station: map['station'] as RadioStationEntity,
                 stationsList:
                     (map['stationsList'] as List<RadioStationEntity>?) ??
-                        const [],
+                    const [],
               );
             }
             final station = state.extra as RadioStationEntity;
@@ -112,8 +120,7 @@ abstract class AppRouter {
               return PodcastDetailsPage(
                 podcast: map['podcast'] as PodcastEntity,
                 podcastsList:
-                    (map['podcastsList'] as List<PodcastEntity>?) ??
-                        const [],
+                    (map['podcastsList'] as List<PodcastEntity>?) ?? const [],
               );
             }
             final podcast = state.extra as PodcastEntity;
@@ -129,10 +136,9 @@ abstract class AppRouter {
               return PodcastPlayerPage(
                 podcast: map['podcast'] as PodcastEntity,
                 podcastsList:
-                    (map['podcastsList'] as List<PodcastEntity>?) ??
-                        const [],
-                initialEpisodes: (map['initialEpisodes']
-                        as List<PodcastEpisodeEntity>?) ??
+                    (map['podcastsList'] as List<PodcastEntity>?) ?? const [],
+                initialEpisodes:
+                    (map['initialEpisodes'] as List<PodcastEpisodeEntity>?) ??
                     const [],
                 initialEpisodeIndex:
                     (map['initialEpisodeIndex'] as num?)?.toInt() ?? 0,
