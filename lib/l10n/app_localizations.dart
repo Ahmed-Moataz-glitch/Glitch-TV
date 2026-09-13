@@ -422,6 +422,42 @@ abstract class AppLocalizations {
   /// **'Stream interrupted. Trying next available feed...'**
   String get switchingToNextFeed;
 
+  /// No description provided for @pressAgainToExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit stream'**
+  String get pressAgainToExit;
+
+  /// No description provided for @pressAgainToExitDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again within 2 seconds to exit stream'**
+  String get pressAgainToExitDesc;
+
+  /// No description provided for @pressAgainToExitRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit radio'**
+  String get pressAgainToExitRadio;
+
+  /// No description provided for @pressAgainToExitRadioDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again within 2 seconds to exit'**
+  String get pressAgainToExitRadioDesc;
+
+  /// No description provided for @weakNetworkReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Weak connection, reconnecting...'**
+  String get weakNetworkReconnecting;
+
+  /// No description provided for @noInternetStreamReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'No internet connection, reconnecting...'**
+  String get noInternetStreamReconnecting;
+
   /// No description provided for @streamUnavailable.
   ///
   /// In en, this message translates to:

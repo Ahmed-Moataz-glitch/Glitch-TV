@@ -1,15 +1,19 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_offline/flutter_offline.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
+import 'package:glitch_tv/core/utils/app_router.dart';
 import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
+import 'package:glitch_tv/core/services/app_audio_service.dart';
 import 'package:glitch_tv/features/home/domain/entities/radio_station_entity.dart';
+import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:toastification/toastification.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class RadioPlayerPage extends StatefulWidget {
   final RadioStationEntity station;
@@ -27,7 +31,7 @@ class RadioPlayerPage extends StatefulWidget {
 
 class _RadioPlayerPageState extends State<RadioPlayerPage>
     with SingleTickerProviderStateMixin {
-  late final AudioPlayer _player;
+  final AppAudioService _audioService = AppAudioService.instance;
   late int _currentIndex;
   late List<RadioStationEntity> _playlist;
 
@@ -37,16 +41,25 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
   bool _isMuted = false;
   String _nowPlayingMetadata = '';
   int _loadGeneration = 0;
-  Timer? _switchDebounceTimer;
+  int _retryCount = 0;
+  Timer? _reconnectTimer;
+  Timer? _connectingWatchdogTimer;
+  DateTime? _lastBackPressTime;
+  bool _isNetworkConnected = true;
 
   StreamSubscription<PlayerState>? _playerStateSub;
-  StreamSubscription<IcyMetadata?>? _icyMetadataSub;
+  StreamSubscription<RadioStationEntity>? _stationChangeSub;
+  StreamSubscription<String>? _nowPlayingSub;
+  StreamSubscription<double>? _volumeSub;
   late AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    _player = AudioPlayer();
+
+    try {
+      WakelockPlus.enable();
+    } catch (_) {}
 
     _pulseController = AnimationController(
       vsync: this,
@@ -65,62 +78,80 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
     _initRadioPlayer();
   }
 
-  AudioSource _createAudioSource(RadioStationEntity station) {
-    final streamUrl = station.streamUrl.isNotEmpty
-        ? station.streamUrl.trim()
-        : 'http://stream.zeno.fm/f3wvbbqmdg8uv';
-
-    Uri? artUri;
-    if (station.favicon.isNotEmpty) {
-      artUri = Uri.tryParse(station.favicon.trim());
-    }
-
-    return AudioSource.uri(
-      Uri.parse(streamUrl),
-      tag: MediaItem(
-        id: station.id.isNotEmpty ? station.id : streamUrl,
-        album: station.country.isNotEmpty ? station.country : 'Egypt Live Radio',
-        title: station.name,
-        artist: station.tags.isNotEmpty ? station.tags : 'Glitch TV Live Radio',
-        artUri: artUri,
-      ),
-      headers: const {
-        'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Icy-MetaData': '1',
-      },
-    );
-  }
-
   void _initRadioPlayer() {
-    _playerStateSub = _player.playerStateStream.listen((state) {
+    final currentServiceStation = _audioService.currentStation;
+    final isAlreadyPlayingThis = _audioService.currentMode == AudioPlaybackMode.radio &&
+        currentServiceStation?.id == _currentStation.id;
+
+    _isPlaying = _audioService.isPlaying && isAlreadyPlayingThis;
+    _isLoading = !_isPlaying;
+    _volume = _audioService.player.volume;
+    _isMuted = _volume == 0.0;
+    _nowPlayingMetadata = isAlreadyPlayingThis ? _audioService.nowPlayingIcy : '';
+
+    _playerStateSub = _audioService.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
           _isPlaying = state.playing;
-          _isLoading = (state.processingState == ProcessingState.loading ||
-                  state.processingState == ProcessingState.buffering) &&
-              !state.playing;
+          if (state.playing) {
+            _isLoading = false;
+            _retryCount = 0;
+            _reconnectTimer?.cancel();
+            _connectingWatchdogTimer?.cancel();
+          } else if (state.processingState == ProcessingState.loading ||
+              state.processingState == ProcessingState.buffering) {
+            _isLoading = true;
+          } else {
+            _isLoading = false;
+          }
         });
       }
     });
 
-    _icyMetadataSub = _player.icyMetadataStream.listen((metadata) {
+    _stationChangeSub = _audioService.stationChangeStream.listen((newStation) {
       if (mounted) {
-        final title = metadata?.info?.title?.trim() ?? '';
-        if (title.isNotEmpty) {
+        final idx = _playlist.indexWhere((s) => s.id == newStation.id);
+        if (idx != -1 && idx != _currentIndex) {
           setState(() {
-            _nowPlayingMetadata = title;
+            _currentIndex = idx;
+            _nowPlayingMetadata = '';
           });
         }
       }
     });
 
-    _loadAndPlay();
+    _nowPlayingSub = _audioService.nowPlayingIcyStream.listen((title) {
+      if (mounted) {
+        setState(() {
+          _nowPlayingMetadata = title;
+        });
+      }
+    });
+
+    _volumeSub = _audioService.volumeStream.listen((vol) {
+      if (mounted) {
+        setState(() {
+          _volume = vol;
+          _isMuted = vol == 0.0;
+        });
+      }
+    });
+
+    if (!isAlreadyPlayingThis || !_audioService.isPlaying) {
+      _loadAndPlay();
+    } else {
+      _isLoading = false;
+    }
   }
 
-  Future<void> _loadAndPlay() async {
+  Future<void> _loadAndPlay({bool isRetry = false}) async {
     final int currentGen = ++_loadGeneration;
+
+    if (!isRetry) {
+      _retryCount = 0;
+      _reconnectTimer?.cancel();
+    }
+    _connectingWatchdogTimer?.cancel();
 
     if (mounted) {
       setState(() {
@@ -129,26 +160,42 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
       });
     }
 
+    // 25-second watchdog in case stream connection hangs on weak internet
+    _connectingWatchdogTimer = Timer(const Duration(seconds: 25), () {
+      if (_loadGeneration != currentGen || !mounted) return;
+      if (!_isPlaying && _isLoading) {
+        debugPrint('Radio connecting watchdog triggered. Retrying...');
+        if (_retryCount < 3) {
+          _retryCount++;
+          _loadAndPlay(isRetry: true);
+        } else {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      }
+    });
+
     try {
-      final source = _createAudioSource(_currentStation);
       if (_loadGeneration != currentGen) return;
 
-      try {
-        await _player.play();
-      } catch (_) {}
+      await _audioService.playRadioStation(
+        station: _currentStation,
+        playlist: _playlist,
+      );
 
       if (_loadGeneration != currentGen) return;
-
-      await _player.setAudioSource(source, preload: true);
-
-      if (_loadGeneration != currentGen) return;
-
-      await _player.play();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       if (_loadGeneration != currentGen) return;
 
       final errStr = e.toString().toLowerCase();
-      // Silently ignore aborted/cancelled requests caused by rapid switching
       if (errStr.contains('abort') ||
           errStr.contains('cancel') ||
           errStr.contains('interrupted') ||
@@ -157,16 +204,30 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
       }
 
       debugPrint('Radio playback error: $e');
-      if (mounted) {
-        AppToast.showToast(
-          context: context,
-          title: context.l10n?.error ?? 'Playback Error',
-          description: 'Failed to play radio stream.',
-          type: ToastificationType.error,
-        );
+      if (_retryCount < 3) {
+        _retryCount++;
+        final delayMs = _retryCount * 2000;
+        debugPrint('Retrying radio playback (attempt $_retryCount of 3) in ${delayMs}ms...');
+        _reconnectTimer?.cancel();
+        _reconnectTimer = Timer(Duration(milliseconds: delayMs), () {
+          if (mounted && _loadGeneration == currentGen) {
+            _loadAndPlay(isRetry: true);
+          }
+        });
+      } else {
+        if (mounted) {
+          final l10n = context.l10n;
+          AppToast.showToast(
+            context: context,
+            title: l10n?.error ?? 'Playback Error',
+            description: l10n?.streamUnavailable ??
+                'Failed to play radio stream. Tap play to retry.',
+            type: ToastificationType.error,
+          );
+        }
       }
     } finally {
-      if (mounted && _loadGeneration == currentGen) {
+      if (mounted && _loadGeneration == currentGen && _retryCount >= 3) {
         setState(() {
           _isLoading = false;
         });
@@ -177,36 +238,38 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
   @override
   void dispose() {
     _loadGeneration++;
-    _switchDebounceTimer?.cancel();
+    _reconnectTimer?.cancel();
+    _connectingWatchdogTimer?.cancel();
     _pulseController.dispose();
     _playerStateSub?.cancel();
-    _icyMetadataSub?.cancel();
-    // _player.stop();
-    // _player.dispose();
+    _stationChangeSub?.cancel();
+    _nowPlayingSub?.cancel();
+    _volumeSub?.cancel();
+    try {
+      WakelockPlus.disable();
+    } catch (_) {}
     super.dispose();
   }
 
   RadioStationEntity get _currentStation => _playlist[_currentIndex];
 
   Future<void> _playOrPause() async {
+    _reconnectTimer?.cancel();
+    _connectingWatchdogTimer?.cancel();
+    _retryCount = 0;
     try {
-      if (_player.playing) {
-        await _player.pause();
-      } else {
-        if (_player.processingState == ProcessingState.idle) {
-          await _loadAndPlay();
-        } else {
-          await _player.play();
-        }
-      }
+      await _audioService.playOrPause();
     } catch (e) {
       debugPrint('Play/Pause error: $e');
+      await _loadAndPlay();
     }
   }
 
-  void _changeStation(int newIndex) {
+  Future<void> _changeStation(int newIndex) async {
     if (_playlist.isEmpty) return;
-    _switchDebounceTimer?.cancel();
+    _reconnectTimer?.cancel();
+    _connectingWatchdogTimer?.cancel();
+    _retryCount = 0;
 
     setState(() {
       _currentIndex = newIndex;
@@ -214,23 +277,23 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
       _nowPlayingMetadata = '';
     });
 
-    _switchDebounceTimer = Timer(const Duration(milliseconds: 200), () {
-      if (mounted) {
-        _loadAndPlay();
-      }
-    });
+    try {
+      await _audioService.playRadioStationAtIndex(newIndex);
+    } catch (e) {
+      debugPrint('Error changing station: $e');
+    }
   }
 
-  void _playNext() {
+  Future<void> _playNext() async {
     if (_playlist.isEmpty) return;
     final nextIdx = (_currentIndex < _playlist.length - 1) ? _currentIndex + 1 : 0;
-    _changeStation(nextIdx);
+    await _changeStation(nextIdx);
   }
 
-  void _playPrevious() {
+  Future<void> _playPrevious() async {
     if (_playlist.isEmpty) return;
     final prevIdx = (_currentIndex > 0) ? _currentIndex - 1 : _playlist.length - 1;
-    _changeStation(prevIdx);
+    await _changeStation(prevIdx);
   }
 
   void _showVolumeDialog() {
@@ -358,7 +421,7 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
       _isMuted = val == 0.0;
     });
     try {
-      await _player.setVolume(val);
+      await _audioService.setVolume(val);
     } catch (_) {}
   }
 
@@ -390,255 +453,353 @@ class _RadioPlayerPageState extends State<RadioPlayerPage>
     final size = MediaQuery.of(context).size;
     final l10n = context.l10n;
 
-    return Scaffold(
-      backgroundColor: context.scaffoldBg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: context.textPrimary,
-            size: 20.sp,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          l10n?.radioPlayer ?? 'Radio Player',
-          style: TextStyle(
-            color: context.textPrimary,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.share_rounded,
-              color: AppColors.primaryLight,
-              size: 22.sp,
-            ),
-            tooltip: l10n?.share ?? 'Share Station',
-            onPressed: _shareStation,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            SizedBox(height: 16.h),
+    return OfflineBuilder(
+      debounceDuration: const Duration(seconds: 1),
+      connectivityBuilder: (
+        BuildContext context,
+        List<ConnectivityResult> connectivity,
+        Widget childWidget,
+      ) {
+        final bool isConnected = connectivity.isNotEmpty &&
+            !connectivity.contains(ConnectivityResult.none);
 
-            // Live Badge & Status Indicator
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
-              decoration: BoxDecoration(
-                color: _isPlaying
-                    ? Colors.redAccent.withAlpha(30)
-                    : context.cardBg,
-                borderRadius: BorderRadius.circular(20.r),
-                border: Border.all(
-                  color: _isPlaying
-                      ? Colors.redAccent
-                      : (context.isDark
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : Colors.black.withValues(alpha: 0.06)),
+        // Auto-reconnect when connection is restored
+        if (isConnected && !_isNetworkConnected) {
+          _isNetworkConnected = true;
+          if (!_isPlaying) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _loadAndPlay(isRetry: true);
+              }
+            });
+          }
+        } else if (!isConnected && _isNetworkConnected) {
+          _isNetworkConnected = false;
+        }
+
+        return childWidget;
+      },
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+
+          // Double back-press guard to prevent accidental exit from radio
+          final now = DateTime.now();
+          if (_lastBackPressTime == null ||
+              now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+            _lastBackPressTime = now;
+            AppToast.showToast(
+              context: context,
+              title: l10n?.pressAgainToExitRadio ?? 'Press back again to exit radio',
+              description: l10n?.pressAgainToExitRadioDesc ??
+                  'Press back again within 2 seconds to exit',
+              type: ToastificationType.info,
+            );
+            return;
+          }
+
+          if (context.mounted) {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRouter.homePath);
+            }
+          }
+        },
+        child: Scaffold(
+          backgroundColor: context.scaffoldBg,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: context.textPrimary,
+                size: 20.sp,
+              ),
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go(AppRouter.homePath);
+                }
+              },
+            ),
+            title: Text(
+              l10n?.radioPlayer ?? 'Radio Player',
+              style: TextStyle(
+                color: context.textPrimary,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: Icon(
+                  Icons.share_rounded,
+                  color: AppColors.primaryLight,
+                  size: 22.sp,
                 ),
+                tooltip: l10n?.share ?? 'Share Station',
+                onPressed: _shareStation,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+            ],
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Non-destructive offline banner indicator
+                if (!_isNetworkConnected)
                   Container(
-                    width: 10.r,
-                    height: 10.r,
-                    decoration: BoxDecoration(
-                      color: _isPlaying
-                          ? Colors.redAccent
-                          : context.textSecondary,
-                      shape: BoxShape.circle,
+                    width: double.infinity,
+                    color: Colors.amber.shade900.withAlpha(220),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 6.h,
                     ),
-                  ),
-                  SizedBox(width: 8.w),
-                  Text(
-                    _isLoading
-                        ? (l10n?.buffering ?? 'CONNECTING...')
-                        : (_isPlaying
-                            ? (l10n?.playingLive ?? 'LIVE STREAM')
-                            : (l10n?.paused ?? 'PAUSED')),
-                    style: TextStyle(
-                      color: _isPlaying
-                          ? Colors.redAccent
-                          : context.textPrimary,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: size.height * 0.05),
-
-            // Station Art / Favicon with Animated Glow
-            Center(
-              child: AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, child) {
-                  final scale = _isPlaying
-                      ? 1.0 + (_pulseController.value * 0.05)
-                      : 1.0;
-                  return Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: 200.w,
-                      height: 200.h,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: context.cardBg,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withAlpha(
-                              _isPlaying ? 80 : 30,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.wifi_off_rounded,
+                          color: Colors.white,
+                          size: 16.sp,
+                        ),
+                        SizedBox(width: 8.w),
+                        Flexible(
+                          child: Text(
+                            l10n?.noInternetStreamReconnecting ??
+                                'No internet connection, reconnecting...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.bold,
                             ),
-                            blurRadius: 8,
-                            spreadRadius: _isPlaying ? 4 : 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                      ),
-                      child: Container(
-                        padding: EdgeInsets.all(16.r),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(100.r),
-                          child: _currentStation.favicon.isNotEmpty
-                              ? CachedNetworkImage(
-                                  imageUrl: _currentStation.favicon,
-                                  memCacheWidth: (200 * devicePixelRatio).toInt(),
-                                  memCacheHeight: (200 * devicePixelRatio).toInt(),
-                                  fit: BoxFit.fill,
-                                  placeholder: (_, __) =>
-                                      _buildFallbackStationIcon(),
-                                  errorWidget: (_, __, ___) =>
-                                      _buildFallbackStationIcon(),
-                                )
-                              : _buildFallbackStationIcon(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                SizedBox(height: 16.h),
+
+                // Live Badge & Status Indicator
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
+                  decoration: BoxDecoration(
+                    color: _isPlaying
+                        ? Colors.redAccent.withAlpha(30)
+                        : context.cardBg,
+                    borderRadius: BorderRadius.circular(20.r),
+                    border: Border.all(
+                      color: _isPlaying
+                          ? Colors.redAccent
+                          : (context.isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : Colors.black.withValues(alpha: 0.06)),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10.r,
+                        height: 10.r,
+                        decoration: BoxDecoration(
+                          color: _isPlaying
+                              ? Colors.redAccent
+                              : context.textSecondary,
+                          shape: BoxShape.circle,
                         ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            SizedBox(height: 30.h),
-
-            // Station Title & Tags
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: Column(
-                children: [
-                  Text(
-                    _currentStation.name,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.textPrimary,
-                      fontSize: 22.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 6.h),
-                  Text(
-                    _nowPlayingMetadata.isNotEmpty
-                        ? _nowPlayingMetadata
-                        : (_currentStation.tags.isNotEmpty
-                            ? _currentStation.tags
-                            : 'Egyptian Live Radio Stream'),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.textSecondary,
-                      fontSize: 13.sp,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: size.height * 0.05),
-            IconButton(
-              iconSize: 36.sp,
-              icon: Icon(
-                _isMuted || _volume == 0
-                    ? Icons.volume_off_rounded
-                    : Icons.volume_up_rounded,
-                color: AppColors.primaryLight,
-              ),
-              onPressed: _showVolumeDialog,
-            ),
-            const Spacer(),
-
-            // Playback Controls Row
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    iconSize: 36.sp,
-                    icon: Icon(
-                      Icons.skip_previous_rounded,
-                      color: _playlist.length > 1
-                          ? context.textPrimary
-                          : context.textSecondary.withValues(alpha: 0.3),
-                    ),
-                    onPressed: _playlist.length > 1 ? _playPrevious : null,
-                  ),
-                  GestureDetector(
-                    onTap: _playOrPause,
-                    child: Container(
-                      width: 72.r,
-                      height: 72.r,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primary,
+                      SizedBox(width: 8.w),
+                      Text(
+                        _isLoading
+                            ? (_retryCount > 0
+                                ? '${l10n?.weakNetworkReconnecting ?? 'RECONNECTING...'} ($_retryCount/3)'
+                                : (l10n?.buffering ?? 'CONNECTING...'))
+                            : (_isPlaying
+                                ? (l10n?.playingLive ?? 'LIVE STREAM')
+                                : (l10n?.paused ?? 'PAUSED')),
+                        style: TextStyle(
+                          color: _isPlaying
+                              ? Colors.redAccent
+                              : context.textPrimary,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
                       ),
-                      child: _isLoading
-                          ? Center(
-                              child: SizedBox(
-                                width: 28.r,
-                                height: 28.r,
-                                child: const CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 3,
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: size.height * 0.05),
+
+                // Station Art / Favicon with Animated Glow
+                Center(
+                  child: AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, child) {
+                      final scale = _isPlaying
+                          ? 1.0 + (_pulseController.value * 0.05)
+                          : 1.0;
+                      return Transform.scale(
+                        scale: scale,
+                        child: Container(
+                          width: 200.w,
+                          height: 200.h,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: context.cardBg,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withAlpha(
+                                  _isPlaying ? 80 : 30,
                                 ),
+                                blurRadius: 8,
+                                spreadRadius: _isPlaying ? 4 : 2,
                               ),
-                            )
-                          : Icon(
-                              _isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: 44.sp,
+                            ],
+                          ),
+                          child: Container(
+                            padding: EdgeInsets.all(16.r),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(100.r),
+                              child: _currentStation.favicon.isNotEmpty
+                                  ? CachedNetworkImage(
+                                      imageUrl: _currentStation.favicon,
+                                      memCacheWidth: (200 * devicePixelRatio).toInt(),
+                                      memCacheHeight: (200 * devicePixelRatio).toInt(),
+                                      fit: BoxFit.fill,
+                                      placeholder: (_, __) =>
+                                          _buildFallbackStationIcon(),
+                                      errorWidget: (_, __, ___) =>
+                                          _buildFallbackStationIcon(),
+                                    )
+                                  : _buildFallbackStationIcon(),
                             ),
-                    ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  IconButton(
-                    iconSize: 36.sp,
-                    icon: Icon(
-                      Icons.skip_next_rounded,
-                      color: _playlist.length > 1
-                          ? context.textPrimary
-                          : context.textSecondary.withValues(alpha: 0.3),
-                    ),
-                    onPressed: _playlist.length > 1 ? _playNext : null,
+                ),
+
+                SizedBox(height: 30.h),
+
+                // Station Title & Tags
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w),
+                  child: Column(
+                    children: [
+                      Text(
+                        _currentStation.name,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.textPrimary,
+                          fontSize: 22.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 6.h),
+                      Text(
+                        _nowPlayingMetadata.isNotEmpty
+                            ? _nowPlayingMetadata
+                            : (_currentStation.tags.isNotEmpty
+                                ? _currentStation.tags
+                                : 'Egyptian Live Radio Stream'),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.textSecondary,
+                          fontSize: 13.sp,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                SizedBox(height: size.height * 0.05),
+                IconButton(
+                  iconSize: 36.sp,
+                  icon: Icon(
+                    _isMuted || _volume == 0
+                        ? Icons.volume_off_rounded
+                        : Icons.volume_up_rounded,
+                    color: AppColors.primaryLight,
+                  ),
+                  onPressed: _showVolumeDialog,
+                ),
+                const Spacer(),
+
+                // Playback Controls Row
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24.w),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        iconSize: 36.sp,
+                        icon: Icon(
+                          Icons.skip_previous_rounded,
+                          color: _playlist.length > 1
+                              ? context.textPrimary
+                              : context.textSecondary.withValues(alpha: 0.3),
+                        ),
+                        onPressed: _playlist.length > 1 ? _playPrevious : null,
+                      ),
+                      GestureDetector(
+                        onTap: _playOrPause,
+                        child: Container(
+                          width: 72.r,
+                          height: 72.r,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.primary,
+                          ),
+                          child: _isLoading
+                              ? Center(
+                                  child: SizedBox(
+                                    width: 28.r,
+                                    height: 28.r,
+                                    child: const CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 3,
+                                    ),
+                                  ),
+                                )
+                              : Icon(
+                                  _isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  color: Colors.white,
+                                  size: 44.sp,
+                                ),
+                        ),
+                      ),
+                      IconButton(
+                        iconSize: 36.sp,
+                        icon: Icon(
+                          Icons.skip_next_rounded,
+                          color: _playlist.length > 1
+                              ? context.textPrimary
+                              : context.textSecondary.withValues(alpha: 0.3),
+                        ),
+                        onPressed: _playlist.length > 1 ? _playNext : null,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 64.h),
+              ],
             ),
-            SizedBox(height: 64.h),
-          ],
+          ),
         ),
       ),
     );

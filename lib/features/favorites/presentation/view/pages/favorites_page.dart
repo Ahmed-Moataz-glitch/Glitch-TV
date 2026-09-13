@@ -105,16 +105,14 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   else if (state is FavoritesLoaded)
                     if (state.allFavorites.isEmpty)
                       SliverToBoxAdapter(
-                        child: Center(
-                          child: _buildEmptyState(
-                            title:
-                                l10n?.noFavoritesYet ??
-                                'No Favorite Channels Yet',
-                            description:
-                                l10n?.noFavoritesDescription ??
-                                'Tap the heart icon on any channel card to save it here for quick access.',
-                            icon: Icons.favorite_border_rounded,
-                          ),
+                        child: _buildEmptyState(
+                          title:
+                              l10n?.noFavoritesYet ??
+                              'No Favorite Channels Yet',
+                          description:
+                              l10n?.noFavoritesDescription ??
+                              'Tap the heart icon on any channel card to save it here for quick access.',
+                          icon: Icons.favorite_border_rounded,
                         ),
                       )
                     else if (state.filteredFavorites.isEmpty)
@@ -338,49 +336,46 @@ class _FavoritesPageState extends State<FavoritesPage> {
     required String description,
     required IconData icon,
   }) {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 60.h, horizontal: 32.w),
-      width: double.infinity,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.all(20.r),
-            decoration: BoxDecoration(
-              color: context.cardBg,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.primaryLight.withAlpha(40),
-                width: 1.5,
-              ),
-            ),
-            child: Icon(
-              icon,
-              size: 56.sp,
-              color: AppColors.primaryLight.withAlpha(180),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(height: 220.h),
+        Container(
+          padding: EdgeInsets.all(20.r),
+          decoration: BoxDecoration(
+            color: context.cardBg,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColors.primaryLight.withAlpha(40),
+              width: 1.5,
             ),
           ),
-          SizedBox(height: 20.h),
-          Text(
-            title,
-            style: TextStyle(
-              color: context.textPrimary,
-              fontSize: 18.sp,
-              fontWeight: FontWeight.bold,
-            ),
+          child: Icon(
+            icon,
+            size: 56.sp,
+            color: AppColors.primaryLight.withAlpha(180),
           ),
-          SizedBox(height: 8.h),
-          Text(
-            description,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: context.textSecondary,
-              fontSize: 13.sp,
-              height: 1.4,
-            ),
+        ),
+        SizedBox(height: 20.h),
+        Text(
+          title,
+          style: TextStyle(
+            color: context.textPrimary,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
+        ),
+        SizedBox(height: 8.h),
+        Text(
+          description,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: context.textSecondary,
+            fontSize: 13.sp,
+            height: 1.4,
+          ),
+        ),
+      ],
     );
   }
 

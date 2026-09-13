@@ -173,6 +173,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Stream interrupted. Trying next available feed...';
 
   @override
+  String get pressAgainToExit => 'Press back again to exit stream';
+
+  @override
+  String get pressAgainToExitDesc =>
+      'Press back again within 2 seconds to exit stream';
+
+  @override
+  String get pressAgainToExitRadio => 'Press back again to exit radio';
+
+  @override
+  String get pressAgainToExitRadioDesc =>
+      'Press back again within 2 seconds to exit';
+
+  @override
+  String get weakNetworkReconnecting => 'Weak connection, reconnecting...';
+
+  @override
+  String get noInternetStreamReconnecting =>
+      'No internet connection, reconnecting...';
+
+  @override
   String get streamUnavailable => 'Stream Unavailable';
 
   @override

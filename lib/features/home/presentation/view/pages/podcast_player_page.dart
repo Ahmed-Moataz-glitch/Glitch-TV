@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:glitch_tv/core/services/app_audio_service.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
@@ -10,38 +11,11 @@ import 'package:glitch_tv/features/home/domain/entities/podcast_entity.dart';
 import 'package:glitch_tv/features/podcast_details/data/services/podcast_download_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:toastification/toastification.dart';
 import 'package:xml/xml.dart' as xml;
 
 import 'package:glitch_tv/features/podcast_details/domain/entities/podcast_episode_entity.dart';
-
-class PodcastEpisode {
-  final String title;
-  final String audioUrl;
-  final String duration;
-  final String pubDate;
-  final String artworkUrl;
-
-  const PodcastEpisode({
-    required this.title,
-    required this.audioUrl,
-    this.duration = '',
-    this.pubDate = '',
-    this.artworkUrl = '',
-  });
-
-  factory PodcastEpisode.fromEntity(PodcastEpisodeEntity entity) {
-    return PodcastEpisode(
-      title: entity.title,
-      audioUrl: entity.audioUrl,
-      duration: entity.duration,
-      pubDate: entity.pubDate,
-      artworkUrl: entity.artworkUrl,
-    );
-  }
-}
 
 class PodcastPlayerPage extends StatefulWidget {
   final PodcastEntity podcast;
@@ -63,7 +37,7 @@ class PodcastPlayerPage extends StatefulWidget {
 
 class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     with SingleTickerProviderStateMixin {
-  late final AudioPlayer _audioPlayer;
+  final AppAudioService _audioService = AppAudioService.instance;
   final PodcastDownloadService _downloadService = PodcastDownloadService();
 
   late List<PodcastEntity> _podcastsQueue;
@@ -90,13 +64,13 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
+  StreamSubscription<PodcastEpisode>? _episodeChangeSub;
 
   final List<double> _speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
 
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
 
     _podcastsQueue = widget.podcastsList.isNotEmpty
         ? widget.podcastsList
@@ -113,29 +87,23 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
   PodcastEntity get _currentPodcast => _podcastsQueue[_currentPodcastIndex];
 
   Future<void> _initAudioPlayer() async {
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
+    _playbackSpeed = _audioService.playbackSpeed;
+    _volume = _audioService.player.volume;
+    _isMuted = _volume == 0.0;
 
-    _playerStateSub = _audioPlayer.playerStateStream.listen((state) {
+    _playerStateSub = _audioService.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
           _isPlaying = state.playing;
-          if (state.processingState == ProcessingState.completed) {
-            _playNextEpisode();
-          } else {
-            _isLoading =
-                (state.processingState == ProcessingState.loading ||
-                    state.processingState == ProcessingState.buffering) &&
-                !state.playing;
-          }
+          _isLoading =
+              (state.processingState == ProcessingState.loading ||
+                  state.processingState == ProcessingState.buffering) &&
+              !state.playing;
         });
       }
     });
 
-    _positionSub = _audioPlayer.positionStream.listen((pos) {
+    _positionSub = _audioService.positionStream.listen((pos) {
       if (mounted) {
         setState(() {
           _position = pos;
@@ -143,11 +111,23 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
       }
     });
 
-    _durationSub = _audioPlayer.durationStream.listen((dur) {
+    _durationSub = _audioService.durationStream.listen((dur) {
       if (mounted && dur != null) {
         setState(() {
           _duration = dur;
         });
+      }
+    });
+
+    _episodeChangeSub = _audioService.episodeChangeStream.listen((ep) {
+      if (mounted) {
+        final idx = _episodesQueue.indexWhere((e) => e.audioUrl == ep.audioUrl);
+        if (idx != -1 && idx != _currentEpisodeIndex) {
+          setState(() {
+            _currentEpisodeIndex = idx;
+          });
+          _checkDownloadStatus();
+        }
       }
     });
 
@@ -354,56 +334,23 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     }
 
     try {
-      await _audioPlayer.stop();
-
-      // Check download status for UI & offline source selection
       await _checkDownloadStatus();
 
-      // Check if episode is stored locally on device for offline playback
-      final downloadedFile = await _downloadService.getDownloadedFile(
-        podcastId: _currentPodcast.id,
-        episodeTitle: ep.title,
-        audioUrl: ep.audioUrl,
-      );
+      final isSamePodcastQueue =
+          _audioService.currentMode == AudioPlaybackMode.podcast &&
+          _audioService.currentPodcast?.id == _currentPodcast.id &&
+          _audioService.podcastQueue.length == _episodesQueue.length;
 
-      final isOffline = downloadedFile != null && await downloadedFile.exists();
-
-      final artUri = (!isOffline && ep.artworkUrl.isNotEmpty)
-          ? Uri.tryParse(ep.artworkUrl)
-          : (!isOffline && _currentPodcast.artworkUrl.isNotEmpty
-              ? Uri.tryParse(_currentPodcast.artworkUrl)
-              : null);
-
-      final mediaItem = MediaItem(
-        id: ep.audioUrl,
-        album: _currentPodcast.name,
-        title: ep.title,
-        artist: _currentPodcast.host.isNotEmpty
-            ? _currentPodcast.host
-            : 'Glitch TV Podcast',
-        artUri: artUri,
-      );
-
-      AudioSource audioSource;
-      if (isOffline) {
-        audioSource = AudioSource.file(
-          downloadedFile.path,
-          tag: mediaItem,
-        );
+      if (isSamePodcastQueue) {
+        await _audioService.playPodcastEpisodeAtIndex(index);
       } else {
-        audioSource = AudioSource.uri(
-          Uri.parse(ep.audioUrl),
-          tag: mediaItem,
-          headers: const {
-            'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': '*/*',
-          },
+        await _audioService.playPodcast(
+          podcast: _currentPodcast,
+          episodes: _episodesQueue,
+          initialIndex: index,
+          downloadService: _downloadService,
         );
       }
-
-      await _audioPlayer.setAudioSource(audioSource);
-      await _audioPlayer.play();
     } catch (e) {
       debugPrint('Error playing episode index $index: $e');
       if (mounted) {
@@ -673,34 +620,23 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
     _playerStateSub?.cancel();
     _positionSub?.cancel();
     _durationSub?.cancel();
-    // _audioPlayer.stop();
-    // _audioPlayer.dispose();
+    _episodeChangeSub?.cancel();
     super.dispose();
   }
 
   Future<void> _playOrPause() async {
-    try {
-      if (_audioPlayer.playing) {
-        await _audioPlayer.pause();
-      } else {
-        await _audioPlayer.play();
-      }
-    } catch (_) {}
+    await _audioService.playOrPause();
   }
 
   Future<void> _seekRelative(int seconds) async {
-    final newPos = _position + Duration(seconds: seconds);
-    final targetPos = newPos < Duration.zero
-        ? Duration.zero
-        : (newPos > _duration ? _duration : newPos);
-    await _audioPlayer.seek(targetPos);
+    await _audioService.seekRelative(seconds);
   }
 
   Future<void> _setPlaybackSpeed(double speed) async {
     setState(() {
       _playbackSpeed = speed;
     });
-    await _audioPlayer.setSpeed(speed);
+    await _audioService.setPlaybackSpeed(speed);
   }
 
   void _showSpeedDialog() {
@@ -899,7 +835,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
       _isMuted = val == 0.0;
     });
     try {
-      await _audioPlayer.setVolume(val);
+      await _audioService.setVolume(val);
     } catch (_) {}
   }
 
@@ -1240,7 +1176,7 @@ class _PodcastPlayerPageState extends State<PodcastPlayerPage>
                           ? _duration.inSeconds.toDouble()
                           : 1.0,
                       onChanged: (val) {
-                        _audioPlayer.seek(Duration(seconds: val.toInt()));
+                        _audioService.seek(Duration(seconds: val.toInt()));
                       },
                     ),
                   ),

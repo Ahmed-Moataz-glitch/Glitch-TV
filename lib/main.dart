@@ -26,18 +26,45 @@ import 'package:glitch_tv/features/settings/data/repo/data_source/settings_local
 import 'package:glitch_tv/features/settings/domain/repo/data_source/settings_local_data_source.dart';
 import 'package:glitch_tv/features/settings/presentation/view_model/settings_cubit.dart';
 import 'package:glitch_tv/features/settings/presentation/view_model/settings_state.dart';
+import 'dart:ui';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Catch framework-level errors
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: ${details.exceptionAsString()}');
+  };
+
+  // Catch uncaught asynchronous errors to prevent fatal application crashes
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('PlatformDispatcher uncaught error: $error\n$stack');
+    return true;
+  };
+
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.example.glitch_tv.channel.audio',
-    androidNotificationChannelName: 'Glitch TV Radio Playback',
+    androidNotificationChannelName: 'Glitch TV Audio Playback',
     androidNotificationOngoing: true,
     androidStopForegroundOnPause: true,
     androidNotificationIcon: 'mipmap/ic_launcher',
+    preloadArtwork: true,
   );
+
+  // Request notification permissions for Android 13+ lock screen & notification controls
+  try {
+    final status = await Permission.notification.status;
+    if (status.isDenied) {
+      await Permission.notification.request();
+    }
+  } catch (e) {
+    debugPrint('Notification permission request error: $e');
+  }
+
   await Hive.initFlutter();
   AppRouter.initializeRouter();
   runApp(const MyApp());

@@ -61,6 +61,12 @@
   "reconnectPrompt": "Tap below to reconnect or switch feed",
   "tryNextFeed": "Try Next Feed",
   "switchingToNextFeed": "Stream interrupted. Trying next available feed...",
+  "pressAgainToExit": "Press back again to exit stream",
+  "pressAgainToExitDesc": "Press back again within 2 seconds to exit stream",
+  "pressAgainToExitRadio": "Press back again to exit radio",
+  "pressAgainToExitRadioDesc": "Press back again within 2 seconds to exit",
+  "weakNetworkReconnecting": "Weak connection, reconnecting...",
+  "noInternetStreamReconnecting": "No internet connection, reconnecting...",
   "streamUnavailable": "Stream Unavailable",
   "availableFeeds": "Available Stream Feeds ({count})",
   "@availableFeeds": {

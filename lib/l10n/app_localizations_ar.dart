@@ -172,6 +172,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get switchingToNextFeed => 'انقطع البث. جاري تجربة سيرفر بديل...';
 
   @override
+  String get pressAgainToExit => 'اضغط مرة أخرى للخروج من البث';
+
+  @override
+  String get pressAgainToExitDesc =>
+      'اضغط زر الرجوع مرة أخرى خلال ثانيتين للخروج من المشاهدة';
+
+  @override
+  String get pressAgainToExitRadio => 'اضغط مرة أخرى للخروج من الراديو';
+
+  @override
+  String get pressAgainToExitRadioDesc =>
+      'اضغط زر الرجوع مرة أخرى خلال ثانيتين للرجوع';
+
+  @override
+  String get weakNetworkReconnecting => 'الاتصال ضعيف، جاري إعادة المحاولة...';
+
+  @override
+  String get noInternetStreamReconnecting =>
+      'لا يوجد اتصال بالإنترنت، جاري محاولة الاستئناف...';
+
+  @override
   String get streamUnavailable => 'البث غير متاح';
 
   @override

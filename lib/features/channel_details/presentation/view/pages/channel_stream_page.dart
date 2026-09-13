@@ -3,12 +3,12 @@ import 'package:awesome_video_player/awesome_video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_offline/flutter_offline.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:glitch_tv/core/utils/app_colors.dart';
 import 'package:glitch_tv/core/utils/app_router.dart';
 import 'package:glitch_tv/core/utils/app_theme.dart';
 import 'package:glitch_tv/core/utils/app_toast.dart';
-import 'package:glitch_tv/core/view/widgets/offline_wrapper.dart';
 import 'package:glitch_tv/features/channel_details/data/api/channel_details_api.dart';
 import 'package:glitch_tv/features/channel_details/data/repo/data_source/channel_details_data_source_impl.dart';
 import 'package:glitch_tv/features/channel_details/data/repo/repo/channel_details_repo_impl.dart';
@@ -23,6 +23,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:s_webview/s_webview.dart' show SWebView;
 import 'package:toastification/toastification.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class ChannelStreamPage extends StatefulWidget {
   final ChannelItemEntity channelItem;
@@ -44,11 +45,20 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
   Timer? _playbackWatchdogTimer;
   Timer? _bufferingWatchdogTimer;
   bool _isDisposed = false;
+  DateTime? _lastBackPressTime;
+  bool _isNetworkConnected = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Keep screen awake while watching live stream
+    try {
+      WakelockPlus.enable();
+    } catch (e) {
+      debugPrint('Error enabling wakelock: $e');
+    }
 
     final api = ChannelDetailsApi();
     final ChannelDetailsDataSource dataSource = ChannelDetailsDataSourceImpl(
@@ -101,6 +111,13 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
 
     if (controller != null) {
       try {
+        if (controller.isFullScreen) {
+          controller.exitFullScreen();
+        }
+      } catch (e) {
+        debugPrint('Error exiting fullscreen on dispose: $e');
+      }
+      try {
         controller.pause();
       } catch (e) {
         debugPrint('Error pausing BetterPlayerController: $e');
@@ -110,11 +127,15 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
       } catch (e) {
         debugPrint('Error muting BetterPlayerController: $e');
       }
-      try {
-        controller.dispose(forceDispose: true);
-      } catch (e) {
-        debugPrint('Error disposing BetterPlayerController: $e');
-      }
+      // Defer native controller disposal to after frame rendering finishes,
+      // preventing raster thread SIGSEGV / texture release race conditions.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          controller.dispose(forceDispose: true);
+        } catch (e) {
+          debugPrint('Error disposing BetterPlayerController: $e');
+        }
+      });
     }
   }
 
@@ -122,6 +143,11 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
   void dispose() {
     _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
+    try {
+      WakelockPlus.disable();
+    } catch (e) {
+      debugPrint('Error disabling wakelock: $e');
+    }
     _disposeCurrentPlayer();
     _cubit.close();
     super.dispose();
@@ -248,8 +274,8 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
         });
       }
 
-      // Start 14-second watchdog to prevent infinite loading spinners on dead/hanging streams
-      _playbackWatchdogTimer = Timer(const Duration(seconds: 14), () {
+      // Generous 40-second watchdog: gives weak connections adequate time to resolve DNS, download manifest & first chunks
+      _playbackWatchdogTimer = Timer(const Duration(seconds: 40), () {
         if (_isDisposed || !mounted) return;
         if (!_hasStreamError) {
           debugPrint('Playback watchdog triggered for stream: $streamUrl');
@@ -259,7 +285,10 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
           final hasMultipleFeeds =
               successState != null && successState.streams.length > 1;
 
-          if (hasMultipleFeeds) {
+          if (_retryCount < 2) {
+            _retryCount++;
+            _setupPlayer(stream, isRetry: true);
+          } else if (hasMultipleFeeds) {
             _trySwitchToNextFeed(showToast: true);
           } else {
             _disposeCurrentPlayer();
@@ -278,7 +307,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
         autoPlay: true,
         looping: false,
         allowedScreenSleep: false,
-        handleLifecycle: true,
+        handleLifecycle: false,
         autoDispose: false,
         expandToFill: false,
         controlsConfiguration: BetterPlayerControlsConfiguration(
@@ -292,7 +321,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
           enableSkips: false,
           enableQualities: true,
           enableAudioTracks: true,
-          enableSubtitles: true,
+          enableSubtitles: false,
           enablePlaybackSpeed: false,
           controlBarColor: Colors.black.withAlpha(180),
           iconsColor: Colors.white,
@@ -349,12 +378,12 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
         headers: headers,
         useAsmsTracks: true,
         useAsmsAudioTracks: true,
-        useAsmsSubtitles: true,
+        useAsmsSubtitles: false,
         bufferingConfiguration: const BetterPlayerBufferingConfiguration(
-          minBufferMs: 20000,
+          minBufferMs: 15000,
           maxBufferMs: 60000,
-          bufferForPlaybackMs: 2000,
-          bufferForPlaybackAfterRebufferMs: 3500,
+          bufferForPlaybackMs: 3000,
+          bufferForPlaybackAfterRebufferMs: 5000,
         ),
         cacheConfiguration: const BetterPlayerCacheConfiguration(
           useCache: false,
@@ -396,7 +425,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
           }
         } else if (type == BetterPlayerEventType.bufferingStart) {
           _bufferingWatchdogTimer?.cancel();
-          _bufferingWatchdogTimer = Timer(const Duration(seconds: 12), () {
+          _bufferingWatchdogTimer = Timer(const Duration(seconds: 45), () {
             if (_isDisposed || !mounted) return;
             debugPrint('Buffering watchdog triggered for stream: $streamUrl');
             final successState = _cubit.state is ChannelStreamSuccess
@@ -404,7 +433,11 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
                 : null;
             final hasMultipleFeeds =
                 successState != null && successState.streams.length > 1;
-            if (hasMultipleFeeds) {
+
+            if (_retryCount < 2) {
+              _retryCount++;
+              _setupPlayer(stream, isRetry: true);
+            } else if (hasMultipleFeeds) {
               _trySwitchToNextFeed(showToast: true);
             } else {
               _disposeCurrentPlayer();
@@ -434,16 +467,18 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
             final hasMultipleFeeds =
                 successState != null && successState.streams.length > 1;
 
-            if (hasMultipleFeeds && _retryCount >= 1) {
-              _trySwitchToNextFeed(showToast: true);
-            } else if (_retryCount < 1) {
+            if (_retryCount < 3) {
+              final delayMs = (_retryCount + 1) * 1500;
               _retryCount++;
+              debugPrint('Retrying stream playback (attempt $_retryCount of 3) in ${delayMs}ms...');
               _reconnectTimer?.cancel();
-              _reconnectTimer = Timer(const Duration(milliseconds: 1500), () {
+              _reconnectTimer = Timer(Duration(milliseconds: delayMs), () {
                 if (!_isDisposed && mounted) {
                   _setupPlayer(stream, isRetry: true);
                 }
               });
+            } else if (hasMultipleFeeds) {
+              _trySwitchToNextFeed(showToast: true);
             } else {
               _disposeCurrentPlayer();
               if (mounted) {
@@ -570,81 +605,73 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
     final logoUrl = widget.channelItem.logoUrl;
     final l10n = context.l10n;
 
-    return OfflineWrapper(
-      onRetry: () {
-        _disposeCurrentPlayer();
-        _retryCount = 0;
-        _cubit.loadStreams(forceRefresh: true);
-      },
-      offlineBuilder: (context) {
-        _disposeCurrentPlayer();
-        return Scaffold(
-          backgroundColor: context.scaffoldBg,
-          appBar: AppBar(
-            backgroundColor: context.scaffoldBg,
-            elevation: 0,
-            leading: IconButton(
-              icon: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: context.textPrimary,
-                size: 24.sp,
-              ),
-              onPressed: () {
-                _disposeCurrentPlayer();
-                context.pop();
-              },
-            ),
-            title: Row(
-              children: [
-                if (logoUrl.isNotEmpty) ...[
-                  SizedBox(
-                    width: 40.w,
-                    height: 40.h,
-                    child: CachedNetworkImage(
-                      imageUrl: logoUrl,
-                      memCacheWidth: (40 * devicePixelRatio).toInt(),
-                      memCacheHeight: (40 * devicePixelRatio).toInt(),
-                      fit: BoxFit.contain,
-                      errorWidget: (_, __, ___) => const Icon(
-                        Icons.live_tv,
-                        color: AppColors.primaryLight,
-                      ),
-                    ),
-                  ),
-                ],
-                Flexible(
-                  child: Text(
-                    channel.name.isNotEmpty ? channel.name : channel.id,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.textPrimary,
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            centerTitle: true,
-          ),
-          body: SafeArea(
-            child: OfflineFallbackView(
-              onRetry: () {
-                _disposeCurrentPlayer();
-                _retryCount = 0;
-                _cubit.loadStreams(forceRefresh: true);
-              },
-              onGoToDownloads: () {
-                context.push(AppRouter.downloadsPath);
-              },
-            ),
-          ),
-        );
+    return OfflineBuilder(
+      debounceDuration: const Duration(seconds: 1),
+      connectivityBuilder: (
+        BuildContext context,
+        List<ConnectivityResult> connectivity,
+        Widget childWidget,
+      ) {
+        final bool isConnected = connectivity.isNotEmpty &&
+            !connectivity.contains(ConnectivityResult.none);
+
+        // Auto-reconnect when connection is restored after a drop
+        if (isConnected && !_isNetworkConnected) {
+          _isNetworkConnected = true;
+          if (_hasStreamError || _betterPlayerController == null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!_isDisposed && mounted) {
+                if (_cubit.state is ChannelStreamSuccess) {
+                  final stream =
+                      (_cubit.state as ChannelStreamSuccess).selectedStream;
+                  _setupPlayer(stream, isRetry: true);
+                } else {
+                  _cubit.loadStreams(forceRefresh: true);
+                }
+              }
+            });
+          }
+        } else if (!isConnected && _isNetworkConnected) {
+          _isNetworkConnected = false;
+        }
+
+        return childWidget;
       },
       child: PopScope(
-        canPop: true,
+        canPop: false,
         onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+
+          // 1. If currently in fullscreen mode, exit fullscreen first and stay on stream
+          if (_betterPlayerController?.isFullScreen == true) {
+            _betterPlayerController?.exitFullScreen();
+            return;
+          }
+
+          // 2. Prevent accidental exit: Double back-press guard
+          final now = DateTime.now();
+          if (_lastBackPressTime == null ||
+              now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+            _lastBackPressTime = now;
+            AppToast.showToast(
+              context: context,
+              title: l10n?.pressAgainToExit ?? 'Press back again to exit stream',
+              description: l10n?.pressAgainToExitDesc ??
+                  'Press back again within 2 seconds to exit stream',
+              type: ToastificationType.info,
+            );
+            return;
+          }
+
+          // 3. User confirmed exit
           _disposeCurrentPlayer();
+          if (context.mounted) {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRouter.homePath);
+            }
+          }
         },
         child: BlocProvider.value(
           value: _cubit,
@@ -660,8 +687,16 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
                   size: 24.sp,
                 ),
                 onPressed: () {
+                  if (_betterPlayerController?.isFullScreen == true) {
+                    _betterPlayerController?.exitFullScreen();
+                    return;
+                  }
                   _disposeCurrentPlayer();
-                  context.pop();
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go(AppRouter.homePath);
+                  }
                 },
               ),
               title: Row(
@@ -700,43 +735,81 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
               centerTitle: true,
             ),
             body: SafeArea(
-              child: BlocConsumer<ChannelStreamCubit, ChannelStreamState>(
-                listener: (context, state) {
-                  if (_isDisposed) return;
-                  if (state is ChannelStreamError) {
-                    AppToast.showToast(
-                      context: context,
-                      title: l10n?.error ?? 'Stream Error',
-                      description: state.message,
-                      type: ToastificationType.error,
-                    );
-                  } else if (state is ChannelStreamSuccess) {
-                    final channelId = widget.channelItem.channel.id;
-                    if (!_isWebStream(state.selectedStream.url, channelId)) {
-                      _setupPlayer(state.selectedStream);
-                    }
-                  }
-                },
-                builder: (context, state) {
-                  if (_isDisposed) {
-                    return const SizedBox.shrink();
-                  }
+              child: Column(
+                children: [
+                  if (!_isNetworkConnected)
+                    Container(
+                      width: double.infinity,
+                      color: Colors.amber.shade900.withAlpha(220),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16.w,
+                        vertical: 6.h,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.wifi_off_rounded,
+                            color: Colors.white,
+                            size: 16.sp,
+                          ),
+                          SizedBox(width: 8.w),
+                          Flexible(
+                            child: Text(
+                              l10n?.noInternetStreamReconnecting ??
+                                  'No internet connection, reconnecting...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Expanded(
+                    child: BlocConsumer<ChannelStreamCubit, ChannelStreamState>(
+                      listener: (context, state) {
+                        if (_isDisposed) return;
+                        if (state is ChannelStreamError) {
+                          AppToast.showToast(
+                            context: context,
+                            title: l10n?.error ?? 'Stream Error',
+                            description: state.message,
+                            type: ToastificationType.error,
+                          );
+                        } else if (state is ChannelStreamSuccess) {
+                          final channelId = widget.channelItem.channel.id;
+                          if (!_isWebStream(state.selectedStream.url, channelId)) {
+                            _setupPlayer(state.selectedStream);
+                          }
+                        }
+                      },
+                      builder: (context, state) {
+                        if (_isDisposed) {
+                          return const SizedBox.shrink();
+                        }
 
-                  if (state is ChannelStreamLoading ||
-                      state is ChannelStreamInitial) {
-                    return _buildLoadingView();
-                  }
+                        if (state is ChannelStreamLoading ||
+                            state is ChannelStreamInitial) {
+                          return _buildLoadingView();
+                        }
 
-                  if (state is ChannelStreamError) {
-                    return _buildErrorView(state.message);
-                  }
+                        if (state is ChannelStreamError) {
+                          return _buildErrorView(state.message);
+                        }
 
-                  if (state is ChannelStreamSuccess) {
-                    return _buildPlayerContent(state);
-                  }
+                        if (state is ChannelStreamSuccess) {
+                          return _buildPlayerContent(state);
+                        }
 
-                  return const SizedBox.shrink();
-                },
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -777,6 +850,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
                     ? _buildErrorOverlay(stream)
                     : (_betterPlayerController != null
                           ? BetterPlayer(
+                              key: ValueKey(_activeStreamUrl ?? 'better_player'),
                               controller: _betterPlayerController!,
                             )
                           : const Center(
