@@ -26,6 +26,7 @@ Built with **Flutter**, designed using **Clean Architecture**, and powered by **
 ## 📖 Table of Contents
 
 - [Overview](#-overview)
+- [Demo Video](#-demo-video)
 - [Screenshots](#-screenshots)
 - [Key Features](#-key-features)
   - [Live TV Streaming & EPG](#-live-tv-streaming--epg-guide)
@@ -58,6 +59,18 @@ Built with **Flutter**, designed using **Clean Architecture**, and powered by **
 **Glitch TV** is an all-in-one entertainment hub that unifies **Live Television**, **Live Radio**, and **On-Demand Podcasts** into a single, high-performance Flutter mobile application.
 
 Engineered with production-grade architectural patterns, it delivers seamless HLS/DASH video playback with auto-failover, background audio service with lock-screen media controls, multi-language localization (with full RTL support), and a robust offline download manager for podcast episodes.
+
+---
+
+## 🎥 Demo Video
+
+<div align="center">
+
+<video src="glitch-tv.mp4" controls="controls" width="85%"></video>
+
+<sub>Watch or download the high-resolution demo video: [glitch-tv.mp4](glitch-tv.mp4)</sub>
+
+</div>
 
 ---
 
@@ -173,6 +186,7 @@ Glitch TV follows Uncle Bob's **Clean Architecture** principles combined with th
 glitch_tv/
 ├── android/                   # Android native configuration & manifests
 ├── assets/                    # Static assets & animations
+│   ├── demo/                  # Application demo video
 │   ├── images/                # App splash screen graphics
 │   ├── lottie/                # Lottie vector animation files
 │   └── screenshots/           # Application preview screenshots
