@@ -66,9 +66,9 @@ Engineered with production-grade architectural patterns, it delivers seamless HL
 
 <div align="center">
 
-<video src="glitch-tv.mp4" controls="controls" width="85%"></video>
+<video src="https://youtu.be/RB_iwUlunn8" controls="controls" width="85%"></video>
 
-<sub>Watch or download the high-resolution demo video: [glitch-tv.mp4](glitch-tv.mp4)</sub>
+<sub>Watch or download the high-resolution demo video: [glitch-tv.mp4](https://youtu.be/RB_iwUlunn8)</sub>
 
 </div>
 
