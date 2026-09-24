@@ -328,4 +328,10 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get searchDownloads => 'البحث في التنزيلات...';
+
+  @override
+  String get connectionRestored => 'تم استعادة الاتصال بالإنترنت';
+
+  @override
+  String get resumingStream => 'تم استعادة الاتصال. جاري استئناف البث...';
 }

@@ -329,4 +329,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchDownloads => 'Search downloads...';
+
+  @override
+  String get connectionRestored => 'Connection Restored';
+
+  @override
+  String get resumingStream => 'Connection restored. Resuming stream...';
 }

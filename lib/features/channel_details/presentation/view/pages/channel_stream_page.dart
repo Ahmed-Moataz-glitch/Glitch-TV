@@ -100,6 +100,13 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
     _activeStreamUrl = null;
 
     if (controller != null) {
+      if (controller.isFullScreen == true) {
+        try {
+          controller.exitFullScreen();
+        } catch (e) {
+          debugPrint('Error exiting fullscreen on BetterPlayerController: $e');
+        }
+      }
       try {
         controller.pause();
       } catch (e) {
@@ -115,6 +122,49 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
       } catch (e) {
         debugPrint('Error disposing BetterPlayerController: $e');
       }
+    }
+  }
+
+  void _handleOffline() {
+    if (_isDisposed) return;
+    _disposeCurrentPlayer();
+  }
+
+  void _handleOnline() {
+    if (_isDisposed || !mounted) return;
+    final l10n = context.l10n;
+
+    AppToast.showToast(
+      context: context,
+      title: l10n?.connectionRestored ?? 'Connection Restored',
+      description: l10n?.resumingStream ??
+          'Internet connection restored. Resuming stream...',
+      type: ToastificationType.success,
+    );
+
+    if (_cubit.state is ChannelStreamSuccess) {
+      final successState = _cubit.state as ChannelStreamSuccess;
+      final channelId = widget.channelItem.channel.id;
+      final isWeb = _isWebStream(successState.selectedStream.url, channelId);
+
+      if (mounted) {
+        setState(() {
+          _hasStreamError = false;
+          _retryCount = 0;
+        });
+      }
+
+      if (!isWeb) {
+        _setupPlayer(successState.selectedStream);
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _hasStreamError = false;
+          _retryCount = 0;
+        });
+      }
+      _cubit.loadStreams(forceRefresh: true);
     }
   }
 
@@ -521,6 +571,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
                 ElevatedButton.icon(
                   onPressed: () {
                     _retryCount = 0;
+                    _hasStreamError = false;
                     _activeStreamUrl = null;
                     _setupPlayer(stream);
                   },
@@ -571,13 +622,15 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
     final l10n = context.l10n;
 
     return OfflineWrapper(
+      onOnline: _handleOnline,
+      onOffline: _handleOffline,
       onRetry: () {
         _disposeCurrentPlayer();
         _retryCount = 0;
+        _hasStreamError = false;
         _cubit.loadStreams(forceRefresh: true);
       },
       offlineBuilder: (context) {
-        _disposeCurrentPlayer();
         return Scaffold(
           backgroundColor: context.scaffoldBg,
           appBar: AppBar(
@@ -595,6 +648,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
               },
             ),
             title: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 if (logoUrl.isNotEmpty) ...[
                   SizedBox(
@@ -611,6 +665,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
                       ),
                     ),
                   ),
+                  SizedBox(width: 8.w),
                 ],
                 Flexible(
                   child: Text(
@@ -632,6 +687,7 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
               onRetry: () {
                 _disposeCurrentPlayer();
                 _retryCount = 0;
+                _hasStreamError = false;
                 _cubit.loadStreams(forceRefresh: true);
               },
               onGoToDownloads: () {
@@ -997,7 +1053,11 @@ class _ChannelStreamPageState extends State<ChannelStreamPage>
               ),
               SizedBox(height: 20.h),
               ElevatedButton.icon(
-                onPressed: () => _cubit.loadStreams(forceRefresh: true),
+                onPressed: () {
+                  _hasStreamError = false;
+                  _retryCount = 0;
+                  _cubit.loadStreams(forceRefresh: true);
+                },
                 icon: const Icon(Icons.refresh_rounded),
                 label: Text(l10n?.retry ?? 'Retry'),
                 style: ElevatedButton.styleFrom(

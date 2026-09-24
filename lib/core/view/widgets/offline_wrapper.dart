@@ -8,17 +8,28 @@ import 'package:go_router/go_router.dart';
 
 /// Full-Screen Offline Fallback Wrapper
 /// Replaces the screen content with [OfflineFallbackView] whenever internet connectivity is lost.
-class OfflineWrapper extends StatelessWidget {
+class OfflineWrapper extends StatefulWidget {
   final Widget child;
   final VoidCallback? onRetry;
+  final VoidCallback? onOnline;
+  final VoidCallback? onOffline;
   final Widget Function(BuildContext context)? offlineBuilder;
 
   const OfflineWrapper({
     super.key,
     required this.child,
     this.onRetry,
+    this.onOnline,
+    this.onOffline,
     this.offlineBuilder,
   });
+
+  @override
+  State<OfflineWrapper> createState() => _OfflineWrapperState();
+}
+
+class _OfflineWrapperState extends State<OfflineWrapper> {
+  bool? _wasConnected;
 
   @override
   Widget build(BuildContext context) {
@@ -29,12 +40,24 @@ class OfflineWrapper extends StatelessWidget {
         List<ConnectivityResult> connectivity,
         Widget childWidget,
       ) {
-        final bool isConnected = connectivity.isNotEmpty &&
-            !connectivity.contains(ConnectivityResult.none);
+        final bool isConnected =
+            connectivity.any((result) => result != ConnectivityResult.none);
+
+        if (_wasConnected != null && _wasConnected != isConnected) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            if (isConnected) {
+              widget.onOnline?.call();
+            } else {
+              widget.onOffline?.call();
+            }
+          });
+        }
+        _wasConnected = isConnected;
 
         if (!isConnected) {
-          if (offlineBuilder != null) {
-            return offlineBuilder!(context);
+          if (widget.offlineBuilder != null) {
+            return widget.offlineBuilder!(context);
           }
           return Scaffold(
             backgroundColor: context.scaffoldBg,
@@ -53,15 +76,15 @@ class OfflineWrapper extends StatelessWidget {
                   )
                 : null,
             body: SafeArea(
-              child: OfflineFallbackView(onRetry: onRetry),
+              child: OfflineFallbackView(onRetry: widget.onRetry),
             ),
           );
         }
 
         return childWidget;
       },
-      errorBuilder: (BuildContext context) => child,
-      child: child,
+      errorBuilder: (BuildContext context) => widget.child,
+      child: widget.child,
     );
   }
 }

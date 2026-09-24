@@ -7,10 +7,7 @@ import 'package:glitch_tv/features/channel_details/domain/entities/epg_programme
 class EpgCard extends StatefulWidget {
   final EpgProgrammeEntity programme;
 
-  const EpgCard({
-    super.key,
-    required this.programme,
-  });
+  const EpgCard({super.key, required this.programme});
 
   @override
   State<EpgCard> createState() => _EpgCardState();
@@ -35,8 +32,8 @@ class _EpgCardState extends State<EpgCard> {
           color: isLive
               ? AppColors.primaryLight
               : (context.isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : Colors.black.withValues(alpha: 0.06)),
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.06)),
           width: isLive ? 1.5 : 1.0,
         ),
         boxShadow: isLive
@@ -49,7 +46,9 @@ class _EpgCardState extends State<EpgCard> {
               ]
             : [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: context.isDark ? 0.2 : 0.05),
+                  color: Colors.black.withValues(
+                    alpha: context.isDark ? 0.2 : 0.05,
+                  ),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -83,8 +82,8 @@ class _EpgCardState extends State<EpgCard> {
                           color: isLive
                               ? Colors.transparent
                               : (context.isDark
-                                  ? Colors.white.withValues(alpha: 0.1)
-                                  : Colors.black.withValues(alpha: 0.1)),
+                                    ? Colors.white.withValues(alpha: 0.1)
+                                    : Colors.black.withValues(alpha: 0.1)),
                         ),
                       ),
                       child: Row(
@@ -92,7 +91,9 @@ class _EpgCardState extends State<EpgCard> {
                           Icon(
                             Icons.access_time_rounded,
                             size: 14.sp,
-                            color: isLive ? Colors.white : AppColors.primaryLight,
+                            color: isLive
+                                ? Colors.white
+                                : AppColors.primaryLight,
                           ),
                           SizedBox(width: 6.w),
                           Text(
@@ -100,7 +101,9 @@ class _EpgCardState extends State<EpgCard> {
                                 ? prog.formattedTime
                                 : 'Scheduled',
                             style: TextStyle(
-                              color: isLive ? Colors.white : context.textPrimary,
+                              color: isLive
+                                  ? Colors.white
+                                  : context.textPrimary,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w600,
                             ),
@@ -184,6 +187,7 @@ class _EpgCardState extends State<EpgCard> {
                   SizedBox(height: 8.h),
                   Text(
                     prog.description,
+                    textDirection: TextDirection.rtl,
                     maxLines: _isExpanded ? 100 : 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

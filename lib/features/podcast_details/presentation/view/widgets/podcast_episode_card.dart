@@ -45,6 +45,7 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16.r),
         child: InkWell(
+          splashFactory: NoSplash.splashFactory,
           onTap: widget.onTap,
           borderRadius: BorderRadius.circular(16.r),
           child: Padding(
@@ -62,7 +63,9 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                         vertical: 4.h,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(context.isDark ? 30 : 20),
+                        color: AppColors.primary.withAlpha(
+                          context.isDark ? 30 : 20,
+                        ),
                         borderRadius: BorderRadius.circular(8.r),
                         border: Border.all(
                           color: AppColors.primaryLight.withAlpha(50),
@@ -129,6 +132,7 @@ class _PodcastEpisodeCardState extends State<PodcastEpisodeCard> {
                     },
                     child: Text(
                       ep.description,
+                      textDirection: TextDirection.rtl,
                       maxLines: _isExpanded ? 10 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

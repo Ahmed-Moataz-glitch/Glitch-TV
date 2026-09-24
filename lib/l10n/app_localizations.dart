@@ -721,6 +721,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search downloads...'**
   String get searchDownloads;
+
+  /// No description provided for @connectionRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection Restored'**
+  String get connectionRestored;
+
+  /// No description provided for @resumingStream.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection restored. Resuming stream...'**
+  String get resumingStream;
 }
 
 class _AppLocalizationsDelegate

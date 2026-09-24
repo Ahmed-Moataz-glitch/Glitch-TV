@@ -127,5 +127,7 @@
   "delete": "Delete",
   "storageUsed": "Storage Used",
   "playOffline": "Play Offline",
-  "searchDownloads": "Search downloads..."
+  "searchDownloads": "Search downloads...",
+  "connectionRestored": "Connection Restored",
+  "resumingStream": "Connection restored. Resuming stream..."
 }

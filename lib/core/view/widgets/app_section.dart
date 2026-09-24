@@ -65,6 +65,10 @@ class _AppSectionState extends State<AppSection> {
         context.read<HomeCubit>().loadData();
         context.read<FavoritesCubit>().loadFavorites();
       },
+      onOnline: () {
+        context.read<HomeCubit>().loadData();
+        context.read<FavoritesCubit>().loadFavorites();
+      },
       child: Scaffold(
         body: IndexedStack(
           index: _currentIndex,

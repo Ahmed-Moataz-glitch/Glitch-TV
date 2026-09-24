@@ -113,5 +113,7 @@
   "delete": "حذف",
   "storageUsed": "المساحة المستخدمة",
   "playOffline": "تشغيل بدون إنترنت",
-  "searchDownloads": "البحث في التنزيلات..."
+  "searchDownloads": "البحث في التنزيلات...",
+  "connectionRestored": "تم استعادة الاتصال بالإنترنت",
+  "resumingStream": "تم استعادة الاتصال. جاري استئناف البث..."
 }
